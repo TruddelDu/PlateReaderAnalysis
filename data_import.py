@@ -121,7 +121,10 @@ def data_import(input_files,time_unit,lum_od=True,smoothing=True,maxtime=False):
             lum=False
         elif reader=='CLARIOstar':
             dataOD,dataLUM = read_clariostar(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
-            lum=True
+            lum=True    
+        elif reader=='Omega':
+            dataOD,dataLUM = read_omega(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
+            lum=False
         elif reader=='victor':
             dataOD,dataLUM,lum = read_victor(file,lum_od,metainfo,time_between_measurements,reader,smoothing,time_unit)
         else:
@@ -409,7 +412,49 @@ def read_clariostar(file,lum_od,metainfo,time_between_measurements,reader,time_u
         dataLUM = lum_correct(dataOD,dataLUM)
     return(dataOD,dataLUM)
     
-
+def read_omega(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing):
+    """Reads data of FLUOstar Omega reader. """
+    wells=get_wells()
+    dataOD=pd.DataFrame()
+    table=pd.read_excel(file, header=None)
+    for n_row in range(len(table)):#find beginning of raw data
+        if table[0][n_row]=='Well':
+            n_row+=1
+            break
+    dataOD=table.iloc[n_row:len(table):].copy(deep=True)
+    dataOD = dataOD.transpose()
+    rename_cols = get_colnames(dataOD,n_row)
+    dataOD=dataOD.rename(columns=rename_cols)
+    dataOD = dataOD.reset_index(drop=True)
+    dataOD = dataOD.drop([0, 1])
+    if list(dataOD['Time']).count(0)>1:
+        cutoff=[i for i, n in enumerate(list(dataOD['Time'])) if n == 0][1]
+        dataOD=dataOD[0:cutoff]
+    dataOD = dataOD.reset_index(drop=True)
+    dataOD[wells] = dataOD[wells].apply(pd.to_numeric)
+    try:
+        dataOD['Time'] = dataOD['Time'].apply(pd.to_numeric)
+        dataOD['Time'] = dataOD['Time']*find_timeconversion_factor('s','h')
+    except ValueError:
+        dataOD['Time'] = dataOD['Time'].str.split()
+        unit=['h','m','s']
+        for i in range(len(dataOD['Time'])):
+            ind_unit=0
+            tmp=0
+            for j in range(0,len(dataOD['Time'].iloc[i]),2):
+                tmp=(tmp+int(dataOD.loc[i,'Time'][j]))*60
+                ind_unit+=1
+            dataOD.loc[i,'Time']=tmp*find_timeconversion_factor(unit[ind_unit],'h')
+    #Background Correction
+    dataOD =background_correct(reader,dataOD,metainfo,'OD')
+    
+    #get ideal times and time convertion to hours
+    dataOD=time_conversion(dataOD,time_between_measurements,time_unit)
+    
+    if smoothing:
+        dataOD=smoothingData(dataOD)
+    dataLUM = pd.DataFrame()
+    return(dataOD,dataLUM)
 
 def read_victor(file,lum_od,metainfo,time_between_measurements,reader,smoothing,time_unit):
     """Reads experimental data of victor reader. Automatically recognizes if no luminescene has been measured. 
@@ -721,7 +766,10 @@ def findreader(file):
     elif any([table[0][i]=='Well\nRow' and table[1][i]=='Well\nCol' for i in range(3,20)]):
         return 'SPECTROstar'
     elif any([table[0][i]=='Well' and table[1][i]=='Content' for i in range(5,20)]):
-        return 'CLARIOstar'
+        if 'Omega' in table[0][1]:
+            return 'Omega'
+        elif 'CLARIOstar' in table[0][1]:       
+            return 'CLARIOstar'
     elif table[0][0]=='Plate':
         return 'victor'
     else:
