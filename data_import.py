@@ -14,7 +14,6 @@ import numbers
 from scipy.signal import medfilt
 import plotting as pl
 
-
 def analysis_specification(specs_for_analysis):
     """Imports the specifications from an Excel sheet 
     specs_for_analysis: path to this excel sheet
@@ -718,7 +717,7 @@ def determine_doublingtime(dataOD,metainfo):
         metainfo.loc[i_wells,'unpertubed doublingtime'] = growthControl
     return metainfo
 
-def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot):
+def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot,variations_in_category):
     """Removes all data from the set that has other variations in the given categories than the one defined.
         
     plotting_variations: dict.keys: categories; values: lists of variations you want to keep
@@ -726,12 +725,13 @@ def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot
     """
     
     if plotting_variations:
-        for cat in category_to_plot:
+        for cat,var in zip(category_to_plot,variations_in_category):
             data=data.reset_index(drop=True) 
             if any(option in list(data[cat]) for option in plotting_variations.keys()):
                 for i in range(len(data)):
-                    if not data.loc[i,cat] in plotting_variations.keys():
-                        data = data.drop(i, axis=0)
+                    if data.loc[i,cat] in plotting_variations.keys():
+                        if not data.loc[i,var] in plotting_variations[data.loc[i,cat]]:
+                            data = data.drop(i, axis=0)
     if data_exclude_but:
         for option in data_exclude_but:
             data=data.reset_index(drop=True)

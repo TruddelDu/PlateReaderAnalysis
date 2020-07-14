@@ -20,7 +20,7 @@ import plotting as pl
 input_files,save,category_to_plot,variations_in_category,plotting_variations,time_unit,data_exclude_but,data_remove = di.analysis_specification(specs_for_analysis)
 
 data,devices = di.data_import(input_files,time_unit,maxtime=2.1)#,lum_od=False)
-data = di.data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot)
+data = di.data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot,variations_in_category)
 data = di.data_remove_all(data,data_remove)
 
 '''translation strain-ID to genotype?'''
@@ -34,11 +34,11 @@ if True:# MIC dose response
     for timepoint in ['10 h']:
         pl.plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,
                      xaxis=category_to_plot[1],continuous_xaxis=False,IC=0.5,normalize=False,ylog=False)
-    pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='OD',timepoints=[600])
+    pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='OD',timepoints=['10 h'])
 
 pl.plot_doublingtime(data,save,time_unit,xaxis=category_to_plot[1])
-pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',timepoints=[30],SaveInduction=True)
-pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',normalizeX='10 h',timepoints=[30])
+pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',timepoints=['30 min'],SaveInduction=True)
+pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',normalizeX='10 h',timepoints=['30 min'])
 
 for category1 in set(data[category_to_plot[0]]):
     if len(category_to_plot)>1:

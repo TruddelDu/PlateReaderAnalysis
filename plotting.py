@@ -12,13 +12,15 @@ new_rc_params = {'text.usetex': False,"svg.fonttype": 'none'}
 plt.rcParams.update(new_rc_params)
 import numpy as np
 import math
+import data_import as di
 
 
 
 def select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates=True):
     selection = data.loc[data[category_to_plot[0]]==category1]
     if not variations_in_category[0]==category_to_plot[0]:
-        selection = selection.loc[selection[variations_in_category[0]].isin(plotting_variations[category1])]
+        if category1 in plotting_variations:
+            selection = selection.loc[selection[variations_in_category[0]].isin(plotting_variations[category1])]
     if category2:
         selection = selection.loc[selection[category_to_plot[1]]==category2]
         if not variations_in_category[1]==category_to_plot[1]:
@@ -538,7 +540,7 @@ def get_save_cat(category,variation):
     else:
         return '{}{}{}'.format(cat.replace(' ',''),variation,unit.replace(' ','').replace('/',''))
     
-def plot_doublingtime(data,save,time_unit,xaxis):
+def plot_doublingtime(data,save,time_unit,xaxis,csv=False):
     # cmap = sns.color_palette(palette='colorblind')
     control_only=data.copy()
     for i in range(len(control_only)):
@@ -552,6 +554,13 @@ def plot_doublingtime(data,save,time_unit,xaxis):
     plt.savefig('{}Doublingtime-{}.svg'.format(save,xaxis), bbox_inches='tight',dpi=300)
     plt.savefig('{}Doublingtime-{}.png'.format(save,xaxis), bbox_inches='tight',dpi=300)
     plt.close()#show()
+    if csv:
+        table=[[xaxis,'doublingtime mean [h]','doublingtime std','doublingtime replicates [h]']]
+        for cat in set(control_only[xaxis]):
+            dts=list(control_only.loc[control_only[xaxis]==cat,'unpertubed doublingtime'])
+            table.append([cat,np.mean(dts),np.std(dts),dts])
+        table=pd.DataFrame(data=table[1:],columns=table[0])
+        table.to_csv('{}Doublingtimes_{}.csv'.format(save,xaxis),index=False,sep=';')
     print('Doubling time plotted')
     return
 
@@ -559,13 +568,15 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
     """Dose response plots of either luciferase activity (lum) or OD (normalized to the control well) at the specified timepoint.
     
     Keyword arguments
-    y:Specifies the y-axis; can be 'LUM' or 'OD'
+    y: Specifies the y-axis; can be 'LUM' or 'OD'
     normalizeX: specifies if and with what the X axis should be normalized. Either False, or timepoint of MIC - plot_MICs of that timepoint has to be executed earlier
-    timepoints: timepoint of analysis, in minutes
+    timepoints: timepoints for analysis, list of strings with time and unit. e.g '10 min', '5 doublings' 
     SaveInduction: boolean, saving fold-induction of every concentration
     """
     translationTable = str.maketrans("μα", "ua")
     dfDoseResponse=[[]]
+    
+
     
     #Data analysis
     for i in range(2): # only add variation col if its not the same as the category (otherwise error)
@@ -575,7 +586,7 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             dfDoseResponse[0].extend([category_to_plot[i],variations_in_category[i]])
             
     for t in timepoints:
-        dfDoseResponse[0].append('Response after {}min'.format(t))
+        dfDoseResponse[0].append('Response after {}'.format(t))
     for i in range(len(data)):
         lum=True
         tmp=[]
@@ -585,14 +596,28 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             else:
                 tmp.extend([data.loc[i,category_to_plot[k]],data.loc[i,variations_in_category[k]]])
         for t in timepoints:#give time for measurement in minutes
+            dt0=data.loc[i,'unpertubed doublingtime']
+            #time in hours at which the MIC is to be measured
+            if t.split(' ')[-1]=='doublings':
+                t_h = dt0*float(t.split(' ')[0])
+            elif t.split(' ')[-1]=='h':
+                t_h = float(t.split(' ')[0])
+            elif t.split(' ')[-1]=='min':
+                t_h = float(t.split(' ')[0])*di.find_timeconversion_factor('m', 'h')
+            else:
+                print('unit of timepoint not recognized')
+                return
+            
+            
+            
             if y=='LUM':
                 try:
-                    idx=find_idx_to_closest_value(data.loc[i,'LUM/OD'].Time,t/60)
+                    idx=find_idx_to_closest_value(data.loc[i,'LUM/OD'].Time,t_h)
                     tmp.append(data.loc[i,'LUM/OD'].loc[idx,'LUM/OD'])
                     label_y = 'luciferase acitvity [RLU/OD]'
                 except KeyError:
                     try:
-                        idx=find_idx_to_closest_value(data.loc[i,'LUM'].Time,t/60)
+                        idx=find_idx_to_closest_value(data.loc[i,'LUM'].Time,t_h)
                         tmp.append(data.loc[i,'LUM'].loc[idx,'LUM'])     
                         label_y= 'LUM [RLU]'
                     except KeyError:
@@ -602,7 +627,7 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                     print('no luminescence data found')
                     lum=False
             elif y=='OD':
-                idx=find_idx_to_closest_value(data.loc[i,'OD'].Time,t/60)
+                idx=find_idx_to_closest_value(data.loc[i,'OD'].Time,t_h)
                 control=data.loc[(data['Date']==data.loc[i,'Date']) & (data['Well']==data.loc[i,'control well'])]
                 control.reset_index(drop=True,inplace=True)
                 if len(control)>1:
@@ -626,7 +651,7 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
         tmpDR = dfDoseResponse.copy()
         if y=='LUM':
             for i in range(len(tmpDR)):
-                if tmpDR.loc[i,'Response after {}min'.format(t)]==0:
+                if tmpDR.loc[i,'Response after {}'.format(t)]==0:
                     tmpDR =tmpDR.drop(i, axis=0)
             
         if  normalizeX:
@@ -644,16 +669,16 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 for strain in set(data[category_to_plot[1]]):
                     indDR= tmpDR.loc[tmpDR[category_to_plot[0]]==inducer]
                     indDR= indDR.loc[indDR[category_to_plot[1]]==strain]
-                    control=np.mean(indDR.loc[indDR[variations_in_category[0]]==0,'Response after {}min'.format(t)])
+                    control=np.mean(indDR.loc[indDR[variations_in_category[0]]==0,'Response after {}'.format(t)])
                     for conc in set(indDR[variations_in_category[0]]):
-                        mean = np.mean(indDR.loc[indDR[variations_in_category[0]]==conc,'Response after {}min'.format(t)])
+                        mean = np.mean(indDR.loc[indDR[variations_in_category[0]]==conc,'Response after {}'.format(t)])
                         foldchange='{:.2f}'.format(mean/control)
                         table = '{}{}\t {} \t {} \t {}\n'.format(table,inducer,strain,conc,foldchange)
-                with open('{}FoldChange{}{}min_{}.csv'.format(save,y,t,remove_unit(inducer).translate(translationTable)),'w', encoding="utf-8") as writer:
+                with open('{}FoldChange{}{}_{}.csv'.format(save,y,t.replace(' ',''),remove_unit(inducer).translate(translationTable)),'w', encoding="utf-8") as writer:
                     writer.write(table)
             #Plotting
             cmap = sns.color_palette(palette='colorblind',n_colors=len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]])))
-            sns.lineplot(data=tmpDR.loc[tmpDR[category_to_plot[0]]==inducer],x=variations_in_category[0],y='Response after {}min'.format(t),hue=variations_in_category[1],style=category_to_plot[0],markers=True,palette=cmap)
+            sns.lineplot(data=tmpDR.loc[tmpDR[category_to_plot[0]]==inducer],x=variations_in_category[0],y='Response after {}'.format(t),hue=variations_in_category[1],style=category_to_plot[0],markers=True,palette=cmap)
             if y=='LUM':
                 plt.yscale('log')
                 if 'CLARIOstar' in devices:
@@ -689,33 +714,33 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 plt.xlabel('antibiotic concentration, normalized by the MIC')
             else:
                 plt.xlabel('antibiotic concentration [μg/ml]')
-            #manipulate x axis range
-            xpl = np.array([5])
-            ypl = np.array([10**6])
+            # #manipulate x axis range
+            # xpl = np.array([5])
+            # ypl = np.array([10**6])
+            # # plot the data
+            # plt.plot(xpl,ypl)
             
-            # plot the data
-            plt.plot(xpl,ypl)
             plt.ylabel(label_y)
-            plt.title('Response after {}min'.format(t))
+            plt.title('Response after {}'.format(t))
             plt.grid(b=True, which = 'major')
             plt.grid(b=True, which = 'minor',linewidth=0.5)
             # Shrink current axis by 20%
             ax=plt.gca()
             handles, labels = ax.get_legend_handles_labels()
             if not (len(ax.get_legend_handles_labels()[1])<=len(set(tmpDR[category_to_plot[1]]))):
-                handles=handles[:len(set(tmpDR[category_to_plot[1]]))+1]
-                labels=labels[:len(set(tmpDR[category_to_plot[1]]))+1]
+                handles=handles[:len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]]))+1]
+                labels=labels[:len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]]))+1]
 #                ax.legend(handles[:len(set(tmpDR[category_to_plot[1]]))+1], labels[:len(set(tmpDR[category_to_plot[1]]))+1])#,loc='center left', bbox_to_anchor=(1, 0.5))
             box = ax.get_position()
             ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
             # Put a legend to the right of the current axis
             ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1, 0.5))
             if normalizeX:
-                plt.savefig('{}DoseResponse{}{}min_{}_normed.svg'.format(save,y,t,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}DoseResponse{}{}min_{}_normed.png'.format(save,y,t,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}DoseResponse{}{}_{}_normed.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}DoseResponse{}{}_{}_normed.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
             else:
-                plt.savefig('{}DoseResponse{}{}min_{}.svg'.format(save,y,t,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}DoseResponse{}{}min_{}.png'.format(save,y,t,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}DoseResponse{}{}_{}.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}DoseResponse{}{}_{}.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
             plt.close()#show()
     print('{} dose response plotted at timepoints {}'.format(y,str(timepoints)))
     return
