@@ -13,6 +13,7 @@ plt.rcParams.update(new_rc_params)
 import numpy as np
 import math
 import data_import as di
+from scipy.stats import ttest_ind
 
 
 
@@ -286,9 +287,26 @@ def find_idx_to_closest_value(array,value):
     else:
         return idx
 
-def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,xaxis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False):
+def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,xaxis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False):
     translationTable = str.maketrans("μα", "ua")   
     dfpointIC,unit=determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting_variations,IC,estimateIC=True)
+    
+    if ttest:
+        for strain in set(dfpointIC['strain']):
+            for ab in set(dfpointIC['Inducer1']):
+                sel=dfpointIC.loc[dfpointIC['strain']==strain]
+                mic=list(sel.loc[sel['Inducer1']==ab,'Concentration'])
+                wt=dfpointIC.loc[dfpointIC['strain']=='WT']
+                wtmic=list(wt.loc[wt['Inducer1']==ab,'Concentration'])
+                
+                stat, p = ttest_ind(mic, wtmic,equal_var=False)
+        #        stat, p = f_oneway(mic, wtmic)
+                print('stat=%.3f, p=%.3f' % (stat, p))
+                if p > 0.05:
+                    print('{}, {} has probably the same distribution as WT'.format(strain,ab))
+                else:
+                    print('{}, {} has probably different distributions as WT'.format(strain,ab))
+        #        print('{}, {} - {} ({})'.format(strain,ab,mic,std))
     
     #MIC determination & if applicable normalization
     for category1 in set(dfpointIC[category_to_plot[0]]):
@@ -330,7 +348,10 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     
 #    fig = plt.gcf()
 #    fig.set_size_inches(5,3)
-    plt.title('IC{} determined after {}'.format(int(IC*100),timepoint))
+    actual_times=list(set(dfpointIC['IC after']))
+    actual_times.sort()
+    actual_times = [str(i) for i in actual_times]
+    plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
 #    try:
 #        plt.ylim(0,max(dfpointMIC['normalized MIC Concentration'])*1.1)
 #    except ValueError:
@@ -352,9 +373,12 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     # Put a legend to the right of the current axis
     if continuous_xaxis==True or xaxis=='growth rate [h^-1]':        
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    elif len(ax.get_legend_handles_labels()[1])<3:
+    
+    elif len(ax.get_legend_handles_labels()[1])<len(set(dfpointIC[xaxis])):
         handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[1:], labels[1:],loc='center left', bbox_to_anchor=(1, 0.5))       
+        handles=handles[:len(set(dfpointIC[xaxis]))+1]
+        labels=labels[:len(set(dfpointIC[xaxis]))+1]
+        ax.legend(handles, labels,loc='center left', bbox_to_anchor=(1, 0.5))       
     else:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles[-2:], labels[-2:],loc='center left', bbox_to_anchor=(1, 0.5))
@@ -439,7 +463,7 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                                 measuredIC=(0.5-n)/m
                         else:
                             measuredIC=min(odsCurTimepoint[odsCurTimepoint['normalizedODs']<IC][variations_in_category[0]])
-                        row.extend([np.log(2)/dt0,np.log(2)/replicate.loc[idx,'unpertubed doublingtime'],measuredIC ,timepoint, float('NaN')])
+                        row.extend([np.log(2)/dt0,np.log(2)/replicate.loc[idx,'unpertubed doublingtime'],measuredIC ,round(replicate.loc[idx,'OD'].Time[cur_timepoint],2), float('NaN')])
                         dfpointIC.append(row)
     dfpointIC=pd.DataFrame(dfpointIC[1:],columns=dfpointIC[0])
     return(dfpointIC,unit)

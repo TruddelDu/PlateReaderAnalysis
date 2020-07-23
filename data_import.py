@@ -574,13 +574,13 @@ def join_data_metainfo(metainfo,dataOD,dataLUM,lum_od,lum,maxtime):
             tmp_data['OD']=dataOD['OD']
             if maxtime:
                 #shorten all measurements
-                maxtime_idx= pl.find_idx_to_closest_value(tmp_data['Time'],maxtime)
+                maxtime_idx= pl.find_idx_to_closest_value(tmp_data['Time'],maxtime)+1
                 ODs.append(tmp_data.iloc[time_idx:maxtime_idx,:].reset_index(drop=True))
             else:
                 ODs.append(tmp_data.iloc[time_idx:,:].reset_index(drop=True))
         else:
             if maxtime:
-                maxtime_idx= pl.find_idx_to_closest_value(dataOD['Time'],maxtime)
+                maxtime_idx= pl.find_idx_to_closest_value(dataOD['Time'],maxtime)+1
                 tmpOD=dataOD.iloc[0:maxtime_idx,:].reset_index(drop=True)
                 tmpLUM=dataLUM.iloc[0:maxtime_idx,:].reset_index(drop=True)
             else:
@@ -780,6 +780,8 @@ def find_timeconversion_factor(unit_in,unit_out):
     
     unit_in, unit_out: str. options: 's','m','h'
     """
+    if unit_out=='doublings':
+        unit_out='h'
     if unit_in==unit_out:
         return 1
     elif (unit_in=='s' and unit_out=='m') or (unit_in=='m' and unit_out=='h'):
