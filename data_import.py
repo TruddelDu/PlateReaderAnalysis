@@ -91,6 +91,8 @@ def analysis_specification(specs_for_analysis):
                 else:
                     data_remove[worksheet.cell(n_row, 0).value]=options
     wb.release_resources()
+    if len(set(input_files))!=len(input_files):
+        raise SystemExit('One experiment is imported twice. Please remove one copy in the AnalysisInformation.xlsx file.')    
     return input_files,save,category_to_plot,variations_in_category,plotting_variations,time_unit,data_exclude_but,data_remove
 
 
