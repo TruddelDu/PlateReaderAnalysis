@@ -158,108 +158,74 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
     
     # number_of_experiments=len(get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1))
 
-    if category2:
-        for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
-            dfplot=pd.DataFrame()
-            for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-                var_data=selection.loc[(selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
-                if var_data.empty:
-                    continue 
-                
-                time_factor = time_modulation(time_unit,np.mean(var_data['unpertubed doublingtime']))
-                for ind,exp in zip(list(var_data.index.values),range(len(var_data.index.values))):
-                    try:
-                        time_data = var_data.loc[ind,plot_object].Time*time_factor
-                        labelcol = ['{} {}'.format(variation1,get_unit(category1))] * len(time_data)
-                        tmp_df = pd.DataFrame(list(zip(time_data,var_data.loc[ind,plot_object][plot_object],labelcol)),columns=['Time /{}'.format(time_unit),plot_object,remove_unit(category1)])
-                        dfplot = pd.concat([dfplot,tmp_df],sort=False)
-                    except AttributeError:
-                        pass
-#                        number_of_experiments-=1
-#                        color_palette=sns.color_palette(palette='deep',n_colors=number_of_experiments)
-            cmap=sns.color_palette(palette='colorblind',n_colors=len(set(dfplot[remove_unit(category1)])))
-            sns.lineplot(data=dfplot, x='Time /{}'.format(time_unit) , y=plot_object, hue=remove_unit(category1),palette=cmap)#label='{} {}'.format(variation1,'/'.join(category1.split('/')[1:])))
-            if plot_object=='OD':
-                plt.ylim(0.001,2)
-            elif plot_object=='LUM/OD':
-                if 'CLARIOstar' in devices:
-                    ylim_max=2*10**8
-                else:
-                    ylim_max=3*(10**3)
-                if not 'CLARIOstar' in devices:
-                    ylim_min=5*10**0
-                elif len(devices)>1:
-                    ylim_min=5*10**0
-                else:
-                    ylim_min=10**3
-                plt.ylim(ylim_min,ylim_max)
-                plt.ylim(10**4,10**7)
-            elif plot_object=='LUM':
-                if 'CLARIOstar' in devices:
-                    ylim_max=2*10**8
-                else:
-                    ylim_max=2*10**5
-                if not 'CLARIOstar' in devices:
-                    ylim_min=1
-                elif len(devices)>1:
-                    ylim_min=1
-                else:
-                    ylim_min=1
-                plt.ylim(ylim_min,ylim_max)
-            # if (category2=='PbcrC-lux') and (plot_object=='LUM'):
-            #         ylim_min=10**5
-            #         ylim_max=10**7
-            #         plt.ylim(ylim_min,ylim_max)
-            plt.grid(b=True, which = 'major')
-            plt.grid(b=True, which = 'minor',linewidth=0.5)
-            plt.ylabel(find_ylabel(plot_object))
-            plt.xlabel('time [{}]'.format(time_unit))
-            plt.yscale('log')
-            plt.title('{}; {}'.format(get_title(category2,variation2),remove_unit(category1)))
-            # Shrink current axis by 20%
-            ax=plt.gca()
-            box = ax.get_position()
-            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-            # Put a legend to the right of the current axis
-            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-            plt.savefig('{}AVGtimedependent{}_{}_{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-            plt.savefig('{}AVGtimedependent{}_{}_{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-            plt.close()#show()
-    else:#only one category
+   
+    for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
         dfplot=pd.DataFrame()
         for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-            var_data=selection.loc[(selection[variations_in_category[0]]==variation1)]
+            var_data=selection.loc[(selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
             if var_data.empty:
-                    continue            
+                continue 
+            
             time_factor = time_modulation(time_unit,np.mean(var_data['unpertubed doublingtime']))
-            for ind in list(var_data.index.values):
-                time_data = var_data.loc[ind,plot_object].Time*time_factor
-                labelcol = ['{} {}'.format(variation1,get_unit(category1))] * len(time_data)
-                tmp_df = pd.DataFrame(list(zip(time_data,var_data.loc[ind,plot_object][plot_object],labelcol)),columns=['Time /{}'.format(time_unit),plot_object,remove_unit(category1)])
-                dfplot = pd.concat([dfplot,tmp_df],sort=False)
+            for ind,exp in zip(list(var_data.index.values),range(len(var_data.index.values))):
+                try:
+                    time_data = var_data.loc[ind,plot_object].Time*time_factor
+                    labelcol = ['{} {}'.format(variation1,get_unit(category1))] * len(time_data)
+                    tmp_df = pd.DataFrame(list(zip(time_data,var_data.loc[ind,plot_object][plot_object],labelcol)),columns=['Time /{}'.format(time_unit),plot_object,remove_unit(category1)])
+                    dfplot = pd.concat([dfplot,tmp_df],sort=False)
+                except AttributeError:
+                    pass
+#                        number_of_experiments-=1
+#                        color_palette=sns.color_palette(palette='deep',n_colors=number_of_experiments)
         cmap=sns.color_palette(palette='colorblind',n_colors=len(set(dfplot[remove_unit(category1)])))
-        sns.lineplot(data=dfplot,x='Time /{}'.format(time_unit),y=plot_object, hue=[remove_unit(category1)],palette=cmap)
+        sns.lineplot(data=dfplot, x='Time /{}'.format(time_unit) , y=plot_object, hue=remove_unit(category1),palette=cmap)#label='{} {}'.format(variation1,'/'.join(category1.split('/')[1:])))
         if plot_object=='OD':
             plt.ylim(0.001,2)
         elif plot_object=='LUM/OD':
-            plt.ylim(10,6*(10**5))
+            if 'CLARIOstar' in devices:
+                ylim_max=2*10**8
+            else:
+                ylim_max=3*(10**3)
+            if not 'CLARIOstar' in devices:
+                ylim_min=5*10**0
+            elif len(devices)>1:
+                ylim_min=5*10**0
+            else:
+                ylim_min=10**3
+            plt.ylim(ylim_min,ylim_max)
+            plt.ylim(10**4,10**7)
         elif plot_object=='LUM':
-            plt.ylim(1,3*(10**3))
+            if 'CLARIOstar' in devices:
+                ylim_max=2*10**8
+            else:
+                ylim_max=2*10**5
+            if not 'CLARIOstar' in devices:
+                ylim_min=1
+            elif len(devices)>1:
+                ylim_min=1
+            else:
+                ylim_min=1
+            plt.ylim(ylim_min,ylim_max)
+        # if (category2=='PbcrC-lux') and (plot_object=='LUM'):
+        #         ylim_min=10**5
+        #         ylim_max=10**7
+        #         plt.ylim(ylim_min,ylim_max)
         plt.grid(b=True, which = 'major')
         plt.grid(b=True, which = 'minor',linewidth=0.5)
-        plt.xlabel('Time /{}'.format(time_unit))
+        plt.ylabel(find_ylabel(plot_object))
+        plt.xlabel('time [{}]'.format(time_unit))
         plt.yscale('log')
-        plt.legend()
-        plt.title(remove_unit(category1))
+        plt.title('{}; {}'.format(get_title(category2,variation2),remove_unit(category1)))
         # Shrink current axis by 20%
         ax=plt.gca()
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         # Put a legend to the right of the current axis
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        plt.savefig('{}AVGtimedependent{}_{}.svg'.format(save,plot_object.replace('/','-'),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-        plt.savefig('{}AVGtimedependent{}_{}.png'.format(save,plot_object.replace('/','-'),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
+        plt.savefig('{}AVGtimedependent{}_{}_{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
+        plt.savefig('{}AVGtimedependent{}_{}_{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
         plt.close()#show()
+
     print('plotted averaged time dependent behaviour of {} with {}'.format(plot_object,' & '.join([str(category1),str(category2)])))
     return
     
@@ -344,6 +310,8 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
             
     if ylog:
         plt.yscale('log')
+    else:
+        plt.ylim(0,150)
     plt.grid(which='both',axis='y')
     
 #    fig = plt.gcf()
@@ -355,7 +323,7 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
 #    try:
 #        plt.ylim(0,max(dfpointMIC['normalized MIC Concentration'])*1.1)
 #    except ValueError:
-    plt.ylim(0,150)
+    
     
     #increase figure width when plotting many categories on xaxis 
     if xaxis!='growth rate [h^-1]' and not continuous_xaxis:
@@ -472,18 +440,18 @@ def func(x, m, n):
     """Standard linear function"""
     return m*x+n
 
-def cal_function(variations_in_category,odsCurTimepoint,MIC):
-    lower_than_MIC=max(odsCurTimepoint[odsCurTimepoint['normalizedODs']>MIC][variations_in_category[0]])
-    lower_than_MIC=odsCurTimepoint[odsCurTimepoint[variations_in_category[0]]==lower_than_MIC]
+def cal_function(variations_in_category,odsCurTimepoint,IC):
+    lower_than_IC=max(odsCurTimepoint[odsCurTimepoint['normalizedODs']>IC][variations_in_category[0]])
+    lower_than_IC=odsCurTimepoint[odsCurTimepoint[variations_in_category[0]]==lower_than_IC]
     try:
-        higher_than_MIC=min(odsCurTimepoint[odsCurTimepoint['normalizedODs']<MIC][variations_in_category[0]])
-        higher_than_MIC=odsCurTimepoint[odsCurTimepoint[variations_in_category[0]]==higher_than_MIC]
+        higher_than_IC=min(odsCurTimepoint[odsCurTimepoint['normalizedODs']<IC][variations_in_category[0]])
+        higher_than_IC=odsCurTimepoint[odsCurTimepoint[variations_in_category[0]]==higher_than_IC]
     except ValueError:
         return(None,None)
-    x=float(lower_than_MIC[variations_in_category[0]])-float(higher_than_MIC[variations_in_category[0]])
-    y=float(lower_than_MIC['normalizedODs'])-float(higher_than_MIC['normalizedODs'])
+    x=float(lower_than_IC[variations_in_category[0]])-float(higher_than_IC[variations_in_category[0]])
+    y=float(lower_than_IC['normalizedODs'])-float(higher_than_IC['normalizedODs'])
     m=y/x
-    n=-m*float(lower_than_MIC[variations_in_category[0]])+float(lower_than_MIC['normalizedODs'])
+    n=-m*float(lower_than_IC[variations_in_category[0]])+float(lower_than_IC['normalizedODs'])
     return(m,n)
 
 def norm_with(column,min_or_max):
