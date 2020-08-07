@@ -654,6 +654,17 @@ def background_correct(reader,data,metainfo,dtype):
                 else:
                     print('no lum background saved for CLARIOstar')
                     return data
+            elif reader=='Omega':
+                if dtype=='OD':
+                    lookupOD={'MOPS':0.073}
+                    if medium in lookupOD:
+                        average=lookupOD[medium]
+                    else:
+                        print('No standard {} background saved for {} and {}.'.format(dtype,reader,medium))
+                        return data
+                else:
+                    print('FLUOstar Omega cannot read luminescence data. But somehow luminescence-background is supposed to be corrected. Recheck all options.')
+                    return data
             elif reader=='SPECTROstar':
                 if dtype=='OD':
                     lookupOD={'MOPS':0.0764}
@@ -663,7 +674,7 @@ def background_correct(reader,data,metainfo,dtype):
                         print('No standard {} background saved for {} and {}.'.format(dtype,reader,medium))
                         return data
                 else:
-                    print('no lum background saved for CLARIOstar')
+                    print('SPECTROstar cannot read luminescence data. But somehow luminescence-background is supposed to be corrected. Recheck all options.')
                     return data
             else:
                 print('No standard {} background saved for {} and {}.'.format(dtype,reader,medium))
@@ -695,7 +706,7 @@ def determine_doublingtime(dataOD,metainfo):
     Adds new column to metainfo-dataframe.
     """
     metainfo['doublingtime'] = np.full(len(metainfo), np.nan)
-    metainfo['unpertubed doublingtime'] = np.full(len(metainfo), np.nan)
+    metainfo['unperturbed doublingtime'] = np.full(len(metainfo), np.nan)
     #determine doublingtime between OD0.05-0.2
     for i_wells in range(len(metainfo)):
         well=metainfo['Well'].loc[i_wells]
@@ -716,7 +727,7 @@ def determine_doublingtime(dataOD,metainfo):
     for i_wells in range(len(metainfo)):
         growthControl = metainfo.loc[i_wells,'control well']
         growthControl = float(metainfo['doublingtime'].loc[metainfo['Well']==growthControl])
-        metainfo.loc[i_wells,'unpertubed doublingtime'] = growthControl
+        metainfo.loc[i_wells,'unperturbed doublingtime'] = growthControl
     return metainfo
 
 def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot,variations_in_category):

@@ -70,17 +70,17 @@ def plot_timedependent_replicates(selection,category_to_plot,variations_in_categ
     
 
     for day in set(selection['Date']):
-        for replicate,num in zip(set(selection['unpertubed doublingtime']),range(len(set(selection['unpertubed doublingtime'])))):#if only one replicate was measured that day
+        for replicate,num in zip(set(selection['unperturbed doublingtime']),range(len(set(selection['unperturbed doublingtime'])))):#if only one replicate was measured that day
             if category2:
                 for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
                     for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
                         found_data =False
-                        var_data=selection.loc[(selection['Date']==day) & (selection['unpertubed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
+                        var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
                         if var_data.empty:
                             continue 
                         for ind in list(var_data.index.values):
                             found_data=True
-                            time_factor = time_modulation(time_unit,var_data.loc[ind,'unpertubed doublingtime'])
+                            time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
                             var_data.loc[ind,plot_object].Time = var_data.loc[ind,plot_object].Time*time_factor
                             sns.lineplot(data=var_data.loc[ind,plot_object],x='Time',y=plot_object,label='{} {}'.format(variation1,get_unit(category1)),palette=cmap)
                     if not found_data:
@@ -110,11 +110,11 @@ def plot_timedependent_replicates(selection,category_to_plot,variations_in_categ
             else:#only one category
                 found_data =False
                 for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-                    var_data=selection.loc[(selection['Date']==day) & (selection['unpertubed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1)]
+                    var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1)]
                     if var_data.empty:
                         continue 
                     for ind in list(var_data.index.values):
-                        time_factor = time_modulation(time_unit,var_data.loc[ind,'unpertubed doublingtime'])
+                        time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
                         time = var_data.loc[ind,plot_object].Time*time_factor
                         sns.lineplot(data=var_data.loc[ind,plot_object],x=time,y=plot_object,label='{} {}'.format(variation1,get_unit(category1)), palette=cmap)
                 if not found_data:
@@ -166,7 +166,7 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
             if var_data.empty:
                 continue 
             
-            time_factor = time_modulation(time_unit,np.mean(var_data['unpertubed doublingtime']))
+            time_factor = time_modulation(time_unit,np.mean(var_data['unperturbed doublingtime']))
             for ind,exp in zip(list(var_data.index.values),range(len(var_data.index.values))):
                 try:
                     time_data = var_data.loc[ind,plot_object].Time*time_factor
@@ -193,7 +193,6 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
             else:
                 ylim_min=10**3
             plt.ylim(ylim_min,ylim_max)
-            plt.ylim(10**4,10**7)
         elif plot_object=='LUM':
             if 'CLARIOstar' in devices:
                 ylim_max=2*10**8
@@ -253,7 +252,32 @@ def find_idx_to_closest_value(array,value):
     else:
         return idx
 
+
 def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,xaxis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False):
+    '''
+    Plots the concentation inhibiting growth to a given percentage after a given timeframe (doublings or hours).
+
+    Parameters
+    ----------
+    xaxis : TYPE, optional
+        DESCRIPTION. The default is False.
+    continuous_xaxis : TYPE, optional
+        DESCRIPTION. The default is True.
+    IC : TYPE, optional
+        DESCRIPTION. The default is 0.3.
+    normalize : TYPE, optional
+        DESCRIPTION. The default is 'min'.
+    ylog : TYPE, optional
+        DESCRIPTION. The default is False.
+    ttest : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
     translationTable = str.maketrans("μα", "ua")   
     dfpointIC,unit=determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting_variations,IC,estimateIC=True)
     
@@ -377,7 +401,7 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
             for variation2 in set(preselection[variations_in_category[1]]):
                 selection = preselection.loc[preselection[variations_in_category[1]]==variation2]
                 unit[remove_unit(category1)] = get_unit(category1)
-                dt0=np.mean(selection.loc[(selection[category_to_plot[0]]==category1),'unpertubed doublingtime'])
+                dt0=np.mean(selection.loc[(selection[category_to_plot[0]]==category1),'unperturbed doublingtime'])
                 #time in hours at which the MIC is to be measured
                 if timepoint.split(' ')[-1]=='doublings':
                     timepoint_h = dt0*float(timepoint.split(' ')[0])
@@ -431,7 +455,7 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                                 measuredIC=(0.5-n)/m
                         else:
                             measuredIC=min(odsCurTimepoint[odsCurTimepoint['normalizedODs']<IC][variations_in_category[0]])
-                        row.extend([np.log(2)/dt0,np.log(2)/replicate.loc[idx,'unpertubed doublingtime'],measuredIC ,round(replicate.loc[idx,'OD'].Time[cur_timepoint],2), float('NaN')])
+                        row.extend([np.log(2)/dt0,np.log(2)/replicate.loc[idx,'unperturbed doublingtime'],measuredIC ,round(replicate.loc[idx,'OD'].Time[cur_timepoint],2), float('NaN')])
                         dfpointIC.append(row)
     dfpointIC=pd.DataFrame(dfpointIC[1:],columns=dfpointIC[0])
     return(dfpointIC,unit)
@@ -538,9 +562,9 @@ def plot_doublingtime(data,save,time_unit,xaxis,csv=False):
     for i in range(len(control_only)):
         if control_only.loc[i,'Well']!=control_only.loc[i,'control well']:
             control_only = control_only.drop(i, axis=0)
-    sns.barplot(data=control_only,x=xaxis,y='unpertubed doublingtime',ci=None)
-    sns.swarmplot(data=control_only,x=xaxis,y='unpertubed doublingtime', dodge=True,color='black')
-    plt.ylabel('unpertubed doublingtime [1/{}]'.format(time_unit))
+    sns.barplot(data=control_only,x=xaxis,y='unperturbed doublingtime',ci=None)
+    sns.swarmplot(data=control_only,x=xaxis,y='unperturbed doublingtime', dodge=True,color='black')
+    plt.ylabel('unperturbed doublingtime [1/{}]'.format(time_unit))
     if len(set(control_only[xaxis]))>5:
         plt.xticks(rotation=-90)
     plt.savefig('{}Doublingtime-{}.svg'.format(save,xaxis), bbox_inches='tight',dpi=300)
@@ -549,14 +573,18 @@ def plot_doublingtime(data,save,time_unit,xaxis,csv=False):
     if csv:
         table=[[xaxis,'doublingtime mean [h]','doublingtime std','doublingtime replicates [h]']]
         for cat in set(control_only[xaxis]):
-            dts=list(control_only.loc[control_only[xaxis]==cat,'unpertubed doublingtime'])
+            dts=list(control_only.loc[control_only[xaxis]==cat,'unperturbed doublingtime'])
             table.append([cat,np.mean(dts),np.std(dts),dts])
         table=pd.DataFrame(data=table[1:],columns=table[0])
         table.to_csv('{}Doublingtimes_{}.csv'.format(save,xaxis),index=False,sep=';')
     print('Doubling time plotted')
     return
 
-def plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',normalizeX=False,timepoints=[20],SaveInduction=False):
+def doublingtime_growthrate_conversion(one):
+    other = np.log(2)/one
+    return other
+
+def plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='LUM',normalizeX=False,timepoints=['gr'],SaveInduction=False):
     """Dose response plots of either luciferase activity (lum) or OD (normalized to the control well) at the specified timepoint.
     
     Keyword arguments
@@ -577,8 +605,11 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
         else:
             dfDoseResponse[0].extend([category_to_plot[i],variations_in_category[i]])
             
-    for t in timepoints:
-        dfDoseResponse[0].append('Response after {}'.format(t))
+    if y!='growth rate':
+        for t in timepoints:
+            dfDoseResponse[0].append('Response after {}'.format(t))
+    else:
+        dfDoseResponse[0].append('Response')
     for i in range(len(data)):
         lum=True
         tmp=[]
@@ -587,53 +618,62 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 tmp.append(data.loc[i,category_to_plot[k]])
             else:
                 tmp.extend([data.loc[i,category_to_plot[k]],data.loc[i,variations_in_category[k]]])
-        for t in timepoints:#give time for measurement in minutes
-            dt0=data.loc[i,'unpertubed doublingtime']
-            #time in hours at which the MIC is to be measured
-            if t.split(' ')[-1]=='doublings':
-                t_h = dt0*float(t.split(' ')[0])
-            elif t.split(' ')[-1]=='h':
-                t_h = float(t.split(' ')[0])
-            elif t.split(' ')[-1]=='min':
-                t_h = float(t.split(' ')[0])*di.find_timeconversion_factor('m', 'h')
-            else:
-                print('unit of timepoint not recognized')
-                return
-            
-            
-            
-            if y=='LUM':
-                try:
-                    idx=find_idx_to_closest_value(data.loc[i,'LUM/OD'].Time,t_h)
-                    tmp.append(data.loc[i,'LUM/OD'].loc[idx,'LUM/OD'])
-                    label_y = 'luciferase acitvity [RLU/OD]'
-                except KeyError:
+        if y=='growth rate':
+            if math.isnan(data.loc[i,'doublingtime']):
+                relative_gr=0
+            else:                
+                relative_gr=100*(doublingtime_growthrate_conversion(data.loc[i,'doublingtime'])/doublingtime_growthrate_conversion(data.loc[i,'unperturbed doublingtime']))
+            tmp.append(relative_gr)
+            dfDoseResponse.append(tmp)
+        else:
+            for t in timepoints:#give time for measurement in minutes
+                dt0=data.loc[i,'unperturbed doublingtime']
+                #time in hours at which the MIC is to be measured
+                if t.split(' ')[-1]=='doublings':
+                    t_h = dt0*float(t.split(' ')[0])
+                elif t.split(' ')[-1]=='h':
+                    t_h = float(t.split(' ')[0])
+                elif t.split(' ')[-1]=='min':
+                    t_h = float(t.split(' ')[0])*di.find_timeconversion_factor('m', 'h')
+                else:
+                    print('unit of timepoint not recognized')
+                    return
+                
+                
+                
+                if y=='LUM':
                     try:
-                        idx=find_idx_to_closest_value(data.loc[i,'LUM'].Time,t_h)
-                        tmp.append(data.loc[i,'LUM'].loc[idx,'LUM'])     
-                        label_y= 'LUM [RLU]'
+                        idx=find_idx_to_closest_value(data.loc[i,'LUM/OD'].Time,t_h)
+                        tmp.append(data.loc[i,'LUM/OD'].loc[idx,'LUM/OD'])
+                        label_y = 'luciferase acitvity [RLU/OD]'
                     except KeyError:
-                        print('{} dose response NOT plotted due to missing luminesence data'.format(y))
-                        return
-                except AttributeError:
-                    print('no luminescence data found')
-                    lum=False
-            elif y=='OD':
-                idx=find_idx_to_closest_value(data.loc[i,'OD'].Time,t_h)
-                control=data.loc[(data['Date']==data.loc[i,'Date']) & (data['Well']==data.loc[i,'control well'])]
-                control.reset_index(drop=True,inplace=True)
-                if len(control)>1:
-                    print('Error, several instances possible as control well. Code is not equipped to intercept. Dose response of OD cannot be performed')
-#                    return
-                control = control.loc[0,'OD'].loc[idx,'OD']
-                tmp.append(100/control*data.loc[i,'OD'].loc[idx,'OD'])
-            else:
-                print('No adequate response for dose response given. Try y=\'LUM\' or y=\'OD\'')
-#                return
-        if y=='OD':
-            dfDoseResponse.append(tmp)
-        elif lum: # don't add to Dataset if no luminescent data has been measured
-            dfDoseResponse.append(tmp)
+                        try:
+                            idx=find_idx_to_closest_value(data.loc[i,'LUM'].Time,t_h)
+                            tmp.append(data.loc[i,'LUM'].loc[idx,'LUM'])     
+                            label_y= 'LUM [RLU]'
+                        except KeyError:
+                            print('{} dose response NOT plotted due to missing luminesence data'.format(y))
+                            return
+                    except AttributeError:
+                        print('no luminescence data found')
+                        lum=False
+                elif y=='OD':
+                    idx=find_idx_to_closest_value(data.loc[i,'OD'].Time,t_h)
+                    control=data.loc[(data['Date']==data.loc[i,'Date']) & (data['Well']==data.loc[i,'control well'])]
+                    control.reset_index(drop=True,inplace=True)
+                    if len(control)>1:
+                        print('Error, several instances possible as control well. Code is not equipped to intercept. Dose response of OD cannot be performed')
+    #                    return
+                    control = control.loc[0,'OD'].loc[idx,'OD']
+                    tmp.append(100/control*data.loc[i,'OD'].loc[idx,'OD'])
+                else:
+                    print('No adequate response for dose response given. Try y=\'LUM\' or y=\'OD\'')
+    #                return
+            if y=='OD':
+                dfDoseResponse.append(tmp)
+            elif lum: # don't add to Dataset if no luminescent data has been measured
+                dfDoseResponse.append(tmp)
+    
     
     dfDoseResponse=pd.DataFrame(dfDoseResponse[1:],columns=dfDoseResponse[0])
     
@@ -646,13 +686,13 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 if tmpDR.loc[i,'Response after {}'.format(t)]==0:
                     tmpDR =tmpDR.drop(i, axis=0)
             
-        if  normalizeX:
-            MICs=pd.read_csv('{}{}TimepointMIC.csv'.format(save,normalizeX.replace(' ','_')).translate(translationTable))
-            for category1 in set(MICs[category_to_plot[0]]):
-                tmpMIC=MICs.loc[MICs[category_to_plot[0]]==category1]
-                for category2 in set(tmpMIC[category_to_plot[1]]):
-                    MIC=float(tmpMIC.loc[MICs[category_to_plot[1]]==category2,'MIC mean'])
-                    tmpDR.loc[np.logical_and((tmpDR[category_to_plot[0]]==category1), (tmpDR[category_to_plot[1]]==category2)),variations_in_category[0]]=tmpDR.loc[np.logical_and((tmpDR[category_to_plot[0]]==category1), (tmpDR[category_to_plot[1]]==category2)),variations_in_category[0]]/MIC
+        if normalizeX:
+            ICs=pd.read_csv('{}{}TimepointIC.csv'.format(save,normalizeX.replace(' ','_')).translate(translationTable))
+            for category1 in set(ICs[category_to_plot[0]]):
+                tmpIC=ICs.loc[ICs[category_to_plot[0]]==category1]
+                for category2 in set(tmpIC[category_to_plot[1]]):
+                    IC=float(tmpIC.loc[ICs[category_to_plot[1]]==category2,'IC mean'])
+                    tmpDR.loc[np.logical_and((tmpDR[category_to_plot[0]]==category1), (tmpDR[category_to_plot[1]]==category2)),variations_in_category[0]]=tmpDR.loc[np.logical_and((tmpDR[category_to_plot[0]]==category1), (tmpDR[category_to_plot[1]]==category2)),variations_in_category[0]]/IC
         
         #save data as csv
         for inducer in set(data[category_to_plot[0]]):
@@ -661,16 +701,29 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 for strain in set(data[category_to_plot[1]]):
                     indDR= tmpDR.loc[tmpDR[category_to_plot[0]]==inducer]
                     indDR= indDR.loc[indDR[category_to_plot[1]]==strain]
-                    control=np.mean(indDR.loc[indDR[variations_in_category[0]]==0,'Response after {}'.format(t)])
+                    if y=='growth rate':
+                        control=np.mean(indDR.loc[indDR[variations_in_category[0]]==0,'Response'])
+                    else:
+                        control=np.mean(indDR.loc[indDR[variations_in_category[0]]==0,'Response after {}'.format(t)])
                     for conc in set(indDR[variations_in_category[0]]):
-                        mean = np.mean(indDR.loc[indDR[variations_in_category[0]]==conc,'Response after {}'.format(t)])
+                        if y=='growth rate':
+                            mean = np.mean(indDR.loc[indDR[variations_in_category[0]]==conc,'Response'])
+                        else:
+                            mean = np.mean(indDR.loc[indDR[variations_in_category[0]]==conc,'Response after {}'.format(t)])
                         foldchange='{:.2f}'.format(mean/control)
                         table = '{}{}\t {} \t {} \t {}\n'.format(table,inducer,strain,conc,foldchange)
-                with open('{}FoldChange{}{}_{}.csv'.format(save,y,t.replace(' ',''),remove_unit(inducer).translate(translationTable)),'w', encoding="utf-8") as writer:
-                    writer.write(table)
+                if y=='growth rate':
+                    with open('{}FoldChange{}_{}.csv'.format(save,y,remove_unit(inducer).translate(translationTable)),'w', encoding="utf-8") as writer:
+                        writer.write(table)
+                else:                    
+                    with open('{}FoldChange{}{}_{}.csv'.format(save,y,t.replace(' ',''),remove_unit(inducer).translate(translationTable)),'w', encoding="utf-8") as writer:
+                        writer.write(table)
             #Plotting
             cmap = sns.color_palette(palette='colorblind',n_colors=len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]])))
-            sns.lineplot(data=tmpDR.loc[tmpDR[category_to_plot[0]]==inducer],x=variations_in_category[0],y='Response after {}'.format(t),hue=variations_in_category[1],style=category_to_plot[0],markers=True,palette=cmap)
+            if y=='growth rate':
+                sns.lineplot(data=tmpDR.loc[tmpDR[category_to_plot[0]]==inducer],x=variations_in_category[0],y='Response',hue=variations_in_category[1],style=category_to_plot[0],markers=True,palette=cmap)
+            else:
+                sns.lineplot(data=tmpDR.loc[tmpDR[category_to_plot[0]]==inducer],x=variations_in_category[0],y='Response after {}'.format(t),hue=variations_in_category[1],style=category_to_plot[0],markers=True,palette=cmap)
             if y=='LUM':
                 plt.yscale('log')
                 if 'CLARIOstar' in devices:
@@ -693,14 +746,14 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
                 
                 
             elif y=='OD':
-                label_y='growth relative to unpertubed [%]'
+                label_y='growth relative to unperturbed [%]'
+                ylim_min=0
+                ylim_max=150
+            elif y=='growth rate':
+                label_y='growth rate relative to unperturbed [%]'
                 ylim_min=0
                 ylim_max=150
             plt.ylim(ylim_min,ylim_max)
-#            if normalizeX:
-#                plt.xlim(-0.261111,5.92222)
-#            else:
-#                plt.xlim(-0.75,15.75)
 
             if normalizeX:
                 plt.xlabel('antibiotic concentration, normalized by the MIC')
@@ -713,7 +766,10 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             # plt.plot(xpl,ypl)
             
             plt.ylabel(label_y)
-            plt.title('Response after {}'.format(t))
+            if y=='growth rate':
+                plt.title('Growth rate response')
+            else:
+                plt.title('Response after {}'.format(t))
             plt.grid(b=True, which = 'major')
             plt.grid(b=True, which = 'minor',linewidth=0.5)
             # Shrink current axis by 20%
@@ -727,12 +783,20 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
             # Put a legend to the right of the current axis
             ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1, 0.5))
-            if normalizeX:
-                plt.savefig('{}DoseResponse{}{}_{}_normed.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}DoseResponse{}{}_{}_normed.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+            if y=='growth rate':
+                if normalizeX:
+                    plt.savefig('{}DoseResponse_{}_{}_normed.svg'.format(save,y,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                    plt.savefig('{}DoseResponse_{}_{}_normed.png'.format(save,y,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                else:
+                    plt.savefig('{}DoseResponse_{}_{}.svg'.format(save,y,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                    plt.savefig('{}DoseResponse_{}_{}.png'.format(save,y,remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
             else:
-                plt.savefig('{}DoseResponse{}{}_{}.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}DoseResponse{}{}_{}.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                if normalizeX:
+                    plt.savefig('{}DoseResponse{}{}_{}_normed.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                    plt.savefig('{}DoseResponse{}{}_{}_normed.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                else:
+                    plt.savefig('{}DoseResponse{}{}_{}.svg'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
+                    plt.savefig('{}DoseResponse{}{}_{}.png'.format(save,y,t.replace(' ',''),remove_unit(inducer)).translate(translationTable), bbox_inches='tight',dpi=300)
             plt.close()#show()
     print('{} dose response plotted at timepoints {}'.format(y,str(timepoints)))
     return
