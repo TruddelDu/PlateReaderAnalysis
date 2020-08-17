@@ -667,7 +667,7 @@ def background_correct(reader,data,metainfo,dtype):
                     return data
             elif reader=='SPECTROstar':
                 if dtype=='OD':
-                    lookupOD={'MOPS':0.0764}
+                    lookupOD={'MOPS':0.0768}
                     if medium in lookupOD:
                         average=lookupOD[medium]
                     else:
