@@ -67,7 +67,7 @@ def analysis_specification(specs_for_analysis):
                 for n_col in range(1,worksheet.ncols):
                     if isinstance(worksheet.cell(n_row, n_col).value,numbers.Number):
                         conc.append(worksheet.cell(n_row, n_col).value)
-                plotting_variations[worksheet.cell(n_row, 0).value]=conc
+                plotting_variations[change_unit_delimiter(worksheet.cell(n_row, 0).value)]=conc
             elif active=='data_exclude_but':
                 options = []
                 for n_col in range(1,worksheet.ncols):
@@ -93,6 +93,7 @@ def analysis_specification(specs_for_analysis):
     wb.release_resources()
     if len(set(input_files))!=len(input_files):
         raise SystemExit('One experiment is imported twice. Please remove one copy in the AnalysisInformation.xlsx file.')    
+    
     return input_files,save,category_to_plot,variations_in_category,plotting_variations,time_unit,data_exclude_but,data_remove
 
 
