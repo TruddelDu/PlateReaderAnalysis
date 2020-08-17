@@ -133,7 +133,6 @@ def data_import(input_files,time_unit,lum_od=True,smoothing=True,maxtime=False):
             sys.exit()
         tmp_info = determine_doublingtime(dataOD,metainfo)
         tmp_info = join_data_metainfo(metainfo,dataOD,dataLUM,lum_od,lum,maxtime)
-#        tmp_info = insert_date(tmp_info,file)
         if start:
             Overall_data=tmp_info.copy()
             start=False
@@ -237,7 +236,6 @@ def read_biotek(file,lum_od,metainfo,time_between_measurements,reader,smoothing,
     except ValueError:#in case the reader stopped the measurements, cut data to the last full measurement of the plate
         for i_time in range(len(dataOD)):
             if ("OVRFLW" in dataOD.iloc[i_time].unique()) or (dataOD.iloc[i_time].isnull().values.any()):
-#                cutoff = min(dataOD.loc[dataOD[well]=="OVRFLW"].index.values) #find first timepoint with incorrect data
                 dataOD= dataOD[:i_time] # apply cutoff for OD data
                 dataOD[wells] = dataOD[wells].apply(pd.to_numeric)
                 dataLUM = table.iloc[LUMbeg+1:LUMend,1:].copy(deep=True) #apply cutoff for LUM data
@@ -318,7 +316,6 @@ def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,ti
             if i_run==0:
                 dataOD=table.copy()
                 begin_of_experiment=begin_of_run
-                # metainfo['plate run'] = metainfo['plate run'].apply(pd.to_numeric)
                 metainfo.loc[metainfo['plate run']==i_run+1,'plate run - start time']=0
             else:
                 time_dif=float(begin_of_run-begin_of_experiment)

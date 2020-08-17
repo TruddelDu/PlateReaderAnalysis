@@ -32,9 +32,7 @@ def select_data(data,category_to_plot,variations_in_category,category1,category2
             selection_clean=pd.DataFrame()
             for cur_date in set(selection['Date']):
                 if all(elem in set(selection.loc[selection['Date']==cur_date][variations_in_category[0]])    for elem in plotting_variations[category1]):
-    #                if len(selection.loc[selection['Date']==cur_date][variations_in_category[0]])==len(plotting_variations[category1]): #only one replicate was measured that day
-                        selection_clean = pd.concat([selection_clean,selection.loc[selection['Date']==cur_date]],ignore_index=True,sort=False)
-    #                else:#several replicates were measured that day or single concentrations were measured twice
+                    selection_clean = pd.concat([selection_clean,selection.loc[selection['Date']==cur_date]],ignore_index=True,sort=False)
         else:
             selection_clean=selection                        
         if not category2: #if only one category is used
@@ -71,52 +69,17 @@ def plot_timedependent_replicates(selection,category_to_plot,variations_in_categ
 
     for day in set(selection['Date']):
         for replicate,num in zip(set(selection['unperturbed doublingtime']),range(len(set(selection['unperturbed doublingtime'])))):#if only one replicate was measured that day
-            if category2:
-                for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
-                    for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-                        found_data =False
-                        var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
-                        if var_data.empty:
-                            continue 
-                        for ind in list(var_data.index.values):
-                            found_data=True
-                            time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
-                            var_data.loc[ind,plot_object].Time = var_data.loc[ind,plot_object].Time*time_factor
-                            sns.lineplot(data=var_data.loc[ind,plot_object],x='Time',y=plot_object,label='{} {}'.format(variation1,get_unit(category1)),palette=cmap)
-                    if not found_data:
-                        continue
-                    if plot_object=='OD':
-                        plt.ylim(0.001,2)
-                    elif plot_object=='LUM/OD':
-                        plt.ylim(10,6*(10**5))
-                    elif plot_object=='LUM':
-                        plt.ylim(1,3*(10**3))
-                    plt.grid(b=True, which = 'major')
-                    plt.grid(b=True, which = 'minor',linewidth=0.5)
-                    
-                    plt.ylabel(find_ylabel(plot_object))
-                    plt.xlabel('time [{}]'.format(time_unit))
-                    plt.yscale('log')
-                    plt.title('{}; {} - {}'.format(get_title(category2,variation2),remove_unit(category1),day))
-                    # Shrink current axis by 20%
-                    ax=plt.gca()
-                    box = ax.get_position()
-                    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-                    # Put a legend to the right of the current axis
-                    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-                    plt.savefig('{}timedependent{}_{}_{}_Rep{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
-                    plt.savefig('{}timedependent{}_{}_{}_Rep{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
-                    plt.close()#show()
-            else:#only one category
-                found_data =False
+            for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
                 for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-                    var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1)]
+                    found_data =False
+                    var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
                     if var_data.empty:
                         continue 
                     for ind in list(var_data.index.values):
+                        found_data=True
                         time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
-                        time = var_data.loc[ind,plot_object].Time*time_factor
-                        sns.lineplot(data=var_data.loc[ind,plot_object],x=time,y=plot_object,label='{} {}'.format(variation1,get_unit(category1)), palette=cmap)
+                        var_data.loc[ind,plot_object].Time = var_data.loc[ind,plot_object].Time*time_factor
+                        sns.lineplot(data=var_data.loc[ind,plot_object],x='Time',y=plot_object,label='{} {}'.format(variation1,get_unit(category1)),palette=cmap)
                 if not found_data:
                     continue
                 if plot_object=='OD':
@@ -127,18 +90,19 @@ def plot_timedependent_replicates(selection,category_to_plot,variations_in_categ
                     plt.ylim(1,3*(10**3))
                 plt.grid(b=True, which = 'major')
                 plt.grid(b=True, which = 'minor',linewidth=0.5)
+                
+                plt.ylabel(find_ylabel(plot_object))
                 plt.xlabel('time [{}]'.format(time_unit))
                 plt.yscale('log')
-                plt.legend()
-                plt.title(remove_unit(category1))
+                plt.title('{}; {} - {}'.format(get_title(category2,variation2),remove_unit(category1),day))
                 # Shrink current axis by 20%
                 ax=plt.gca()
                 box = ax.get_position()
                 ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
                 # Put a legend to the right of the current axis
                 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-                plt.savefig('{}Rep{}_timedependent{}_{}.svg'.format(save,num,plot_object.replace('/','-'),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}Rep{}_timedependent{}_{}.png'.format(save,num,plot_object.replace('/','-'),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}timedependent{}_{}_{}_Rep{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}timedependent{}_{}_{}_Rep{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
                 plt.close()#show()
     return
 
@@ -155,9 +119,6 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
     elif plot_object!='OD':
         print('Data ({}) not found.'.format(plot_object))
         return
-    
-    # number_of_experiments=len(get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1))
-
    
     for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
         dfplot=pd.DataFrame()
@@ -175,8 +136,6 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
                     dfplot = pd.concat([dfplot,tmp_df],sort=False)
                 except AttributeError:
                     pass
-#                        number_of_experiments-=1
-#                        color_palette=sns.color_palette(palette='deep',n_colors=number_of_experiments)
         cmap=sns.color_palette(palette='colorblind',n_colors=len(set(dfplot[remove_unit(category1)])))
         sns.lineplot(data=dfplot, x='Time /{}'.format(time_unit) , y=plot_object, hue=remove_unit(category1),palette=cmap)#label='{} {}'.format(variation1,'/'.join(category1.split('/')[1:])))
         if plot_object=='OD':
@@ -205,10 +164,7 @@ def plot_timedependent_averaged(selection,category_to_plot,variations_in_categor
             else:
                 ylim_min=1
             plt.ylim(ylim_min,ylim_max)
-        # if (category2=='PbcrC-lux') and (plot_object=='LUM'):
-        #         ylim_min=10**5
-        #         ylim_max=10**7
-        #         plt.ylim(ylim_min,ylim_max)
+
         plt.grid(b=True, which = 'major')
         plt.grid(b=True, which = 'minor',linewidth=0.5)
         plt.ylabel(find_ylabel(plot_object))
@@ -296,7 +252,6 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
                     print('{}, {} has probably the same distribution as WT'.format(strain,ab))
                 else:
                     print('{}, {} has probably different distributions as WT'.format(strain,ab))
-        #        print('{}, {} - {} ({})'.format(strain,ab,mic,std))
     
     #MIC determination & if applicable normalization
     for category1 in set(dfpointIC[category_to_plot[0]]):
@@ -338,16 +293,12 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
         plt.ylim(0,150)
     plt.grid(which='both',axis='y')
     
-#    fig = plt.gcf()
-#    fig.set_size_inches(5,3)
+
     actual_times=list(set(dfpointIC['IC after']))
     actual_times.sort()
     actual_times = [str(i) for i in actual_times]
     plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
-#    try:
-#        plt.ylim(0,max(dfpointMIC['normalized MIC Concentration'])*1.1)
-#    except ValueError:
-    
+   
     
     #increase figure width when plotting many categories on xaxis 
     if xaxis!='growth rate [h^-1]' and not continuous_xaxis:
@@ -446,9 +397,6 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                         odsCurTimepoint['normalizedODs']=odsCurTimepoint['OD']/od0
                         if estimateIC:
                             m,n =cal_function(variations_in_category,odsCurTimepoint,IC)
-#                            plt.plot(odsCurTimepoint[variations_in_category[0]], func(odsCurTimepoint[variations_in_category[0]],m,n), 'r-',label='fit: m=%5.3f, n=%5.3f' % tuple([m,n]))
-#                            sns.lineplot(data=odsCurTimepoint,x=variations_in_category[0],y='normalizedODs')
-#                            plt.show()
                             if m==None:
                                 continue
                             else:
@@ -557,7 +505,6 @@ def get_save_cat(category,variation):
         return '{}{}{}'.format(cat.replace(' ',''),variation,unit.replace(' ','').replace('/',''))
     
 def plot_doublingtime(data,save,time_unit,xaxis,csv=False):
-    # cmap = sns.color_palette(palette='colorblind')
     control_only=data.copy()
     for i in range(len(control_only)):
         if control_only.loc[i,'Well']!=control_only.loc[i,'control well']:
@@ -778,7 +725,6 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             if not (len(ax.get_legend_handles_labels()[1])<=len(set(tmpDR[category_to_plot[1]]))):
                 handles=handles[:len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]]))+1]
                 labels=labels[:len(set(tmpDR.loc[tmpDR[category_to_plot[0]]==inducer,variations_in_category[1]]))+1]
-#                ax.legend(handles[:len(set(tmpDR[category_to_plot[1]]))+1], labels[:len(set(tmpDR[category_to_plot[1]]))+1])#,loc='center left', bbox_to_anchor=(1, 0.5))
             box = ax.get_position()
             ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
             # Put a legend to the right of the current axis
