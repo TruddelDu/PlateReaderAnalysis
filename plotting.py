@@ -432,7 +432,9 @@ def norm_with(column,min_or_max):
     min_or_max: str. option: 'min','max'
         no normalization  if min_or_max is neither 'min' nor 'max'
     """
-    if min_or_max=='min':
+    if len(column)==0:
+        return 1
+    elif min_or_max=='min':
         return min(column)
     elif min_or_max=='max':
         return max(column)

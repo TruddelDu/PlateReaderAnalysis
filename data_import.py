@@ -121,6 +121,9 @@ def data_import(input_files,time_unit,lum_od=True,smoothing=True,maxtime=False):
         elif reader=='SPECTROstar':
             dataOD,dataLUM,metainfo = read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,time_unit)
             lum=False
+        elif reader=='SPECTROstar TaylorLab':
+            dataOD,dataLUM = read_omega(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
+            lum=False
         elif reader=='CLARIOstar':
             dataOD,dataLUM = read_clariostar(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
             lum=True    
@@ -296,7 +299,7 @@ def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,ti
                 pm=0
             begin_of_run=(pm+float(begin_of_run[1][0]))*find_timeconversion_factor('h','h')+float(begin_of_run[1][1])*find_timeconversion_factor('m','h')+float(begin_of_run[1][2])*find_timeconversion_factor('s','h')
             for n_row in range(len(table)):#find beginning of raw data
-                if table[0][n_row]=='Well\nRow':
+                if table[0][n_row]=='Well\nRow' or table[0][n_row]=='Well':
                     n_row+=1
                     break
             data_time_unit=find_time_unit(n_row,table)
@@ -327,7 +330,7 @@ def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,ti
     else:
         table=pd.read_excel(file, header=None)
         for n_row in range(len(table)):#find beginning of raw data
-            if table[0][n_row]=='Well\nRow':
+            if table[0][n_row]=='Well\nRow' or table[0][n_row]=='Well':
                 n_row+=1
                 break
         data_time_unit=find_time_unit(n_row,table)
@@ -674,6 +677,17 @@ def background_correct(reader,data,metainfo,dtype):
                 else:
                     print('SPECTROstar cannot read luminescence data. But somehow luminescence-background is supposed to be corrected. Recheck all options.')
                     return data
+            elif reader=='SPECTROstar TaylorLab':
+                if dtype=='OD':
+                    lookupOD={'MOPS':0.0768}
+                    if medium in lookupOD:
+                        average=lookupOD[medium]
+                    else:
+                        print('No standard {} background saved for {} and {}.'.format(dtype,reader,medium))
+                        return data
+                else:
+                    print('SPECTROstar cannot read luminescence data. But somehow luminescence-background is supposed to be corrected. Recheck all options.')
+                    return data
             else:
                 print('No standard {} background saved for {} and {}.'.format(dtype,reader,medium))
                 return data
@@ -781,6 +795,8 @@ def findreader(file):
             return 'Omega'
         elif 'CLARIOstar' in table[0][1]:       
             return 'CLARIOstar'
+        elif 'SPECTROstar Nano' in table[0][1]:
+            return 'SPECTROstar TaylorLab'
     elif table[0][0]=='Plate':
         return 'victor'
     else:
