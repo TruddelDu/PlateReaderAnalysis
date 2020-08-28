@@ -290,7 +290,7 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     if ylog:
         plt.yscale('log')
     else:
-        plt.ylim(0,150)
+        plt.ylim(0,200)
     plt.grid(which='both',axis='y')
     
 
@@ -370,10 +370,10 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                             continue
                         replicate = selection.loc[(selection['Date']==date) & (selection['control well']==rep)]
                         
-                        #remove replicates from analysis, which miss parts of the dataset 
-                        if category1 in plotting_variations:
-                            if not all(elem in set(replicate[variations_in_category[0]])    for elem in plotting_variations[category1]):
-                                continue
+                        # #remove replicates from analysis, which miss parts of the dataset 
+                        # if category1 in plotting_variations:
+                        #     if not all(elem in set(replicate[variations_in_category[0]])    for elem in plotting_variations[category1]):
+                        #         continue
                         row=[category1,category2]
                         if category_to_plot[1]!=variations_in_category[1]:
                             row.append(variation2)

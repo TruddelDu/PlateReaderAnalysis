@@ -127,7 +127,7 @@ def data_import(input_files,time_unit,lum_od=True,smoothing=True,maxtime=False):
         elif reader=='CLARIOstar':
             dataOD,dataLUM = read_clariostar(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
             lum=True    
-        elif reader=='Omega':
+        elif reader=='FLUOstar Omega':
             dataOD,dataLUM = read_omega(file,lum_od,metainfo,time_between_measurements,reader,time_unit,smoothing)
             lum=False
         elif reader=='victor':
@@ -655,9 +655,9 @@ def background_correct(reader,data,metainfo,dtype):
                 else:
                     print('no lum background saved for CLARIOstar')
                     return data
-            elif reader=='Omega':
+            elif reader=='FLUOstar Omega':
                 if dtype=='OD':
-                    lookupOD={'MOPS':0.073}
+                    lookupOD={'MOPS':0.073, 'LB':0.079}
                     if medium in lookupOD:
                         average=lookupOD[medium]
                     else:
@@ -792,7 +792,7 @@ def findreader(file):
         return 'SPECTROstar'
     elif any([table[0][i]=='Well' and table[1][i]=='Content' for i in range(5,20)]):
         if 'Omega' in table[0][1]:
-            return 'Omega'
+            return 'FLUOstar Omega'
         elif 'CLARIOstar' in table[0][1]:       
             return 'CLARIOstar'
         elif 'SPECTROstar Nano' in table[0][1]:
