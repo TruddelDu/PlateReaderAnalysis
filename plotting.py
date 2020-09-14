@@ -20,11 +20,11 @@ from scipy.stats import ttest_ind
 def select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates=True):
     selection = data.loc[data[category_to_plot[0]]==category1]
     if not variations_in_category[0]==category_to_plot[0]:
-        if category1 in plotting_variations:
+        if category1 in plotting_variations and clean_replicates:
             selection = selection.loc[selection[variations_in_category[0]].isin(plotting_variations[category1])]
     if category2:
         selection = selection.loc[selection[category_to_plot[1]]==category2]
-        if not variations_in_category[1]==category_to_plot[1]:
+        if not variations_in_category[1]==category_to_plot[1] and clean_replicates:
             selection = selection.loc[selection[variations_in_category[1]].isin(plotting_variations[category2])]    
     #check that every replicate line is complete, if some concentrations were also measured together in another dilution series - delete that data
     if clean_replicates:
@@ -208,6 +208,78 @@ def find_idx_to_closest_value(array,value):
     else:
         return idx
 
+def plot_IC_interaction(data,plotting_variations,timepoint,save):
+    '''
+    Plots a heatmap of the normalized OD with 'Inducer1' and 'Inducer2' as axis
+
+    Parameters
+    ----------
+    data : TYPE
+        DESCRIPTION.
+    plotting_variations : TYPE
+        DESCRIPTION.
+    timepoint : TYPE
+        DESCRIPTION.
+    save : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    translationTable = str.maketrans("μα", "ua")   
+
+    ODs=[['Inducer1','Inducer1_Concentration','Inducer2','Inducer2_Concentration','OD','OD normalized']]
+    for i in range(len(data)):
+        tmp=list()
+        tmp.extend([data.iloc[i].Inducer1,data.iloc[i].Inducer1_Concentration,data.iloc[i].Inducer2,data.iloc[i].Inducer2_Concentration])
+
+        dt0=data.iloc[i]['unperturbed doublingtime']
+        timepoint_h=find_timepoint(timepoint,dt0)
+        
+        cur_timepoint = find_idx_to_closest_value(data.loc[i,'OD'].Time,timepoint_h)
+        od_challenged=float(data.loc[i,'OD'].OD[cur_timepoint])
+        control=data.loc[np.logical_and(data['Well']==data.loc[i,'control well'],data['Date']==data.loc[i,'Date'])]
+        c_i=list(control.index)
+        if len(c_i)>1:
+            print('Well has several options as control well. Please check metainfo data.')
+        else:
+            c_i=int(list(c_i)[0])
+        dt0=data.iloc[c_i]['unperturbed doublingtime']
+        timepoint_h=find_timepoint(timepoint,dt0)
+        cur_timepoint = find_idx_to_closest_value(data.loc[c_i,'OD'].Time,timepoint_h)
+        od_control=float(control.loc[c_i,'OD'].OD[cur_timepoint])
+        tmp.extend([od_challenged,od_challenged/od_control*100])
+        ODs.append(tmp)
+        
+    ODs=pd.DataFrame(ODs[1:],columns=ODs[0])
+    
+    for ind1 in set(ODs['Inducer1']):
+        for ind2 in set(ODs['Inducer2']):
+            specify=ODs.loc[np.logical_and(ODs['Inducer1']==ind1,ODs['Inducer2']==ind2)]
+            if len(specify)==0:
+                continue
+            specify=specify.pivot('Inducer1_Concentration','Inducer2_Concentration','OD normalized')
+            sns.heatmap(specify,vmax=100)
+            plt.xlabel(ind2)
+            plt.ylabel(ind1)
+            plt.savefig('{}{}TimepointIC_{}{}.svg'.format(save,timepoint.replace(' ','_'),remove_unit(ind1),remove_unit(ind2)).translate(translationTable), bbox_inches='tight',dpi=300)
+            plt.savefig('{}{}TimepointIC_{}{}.png'.format(save,timepoint.replace(' ','_'),remove_unit(ind1),remove_unit(ind2)).translate(translationTable), bbox_inches='tight',dpi=300)
+            plt.close()#show()
+    return
+        
+def find_timepoint(timepoint,dt0):
+    '''time in hours at which the MIC is to be measured'''
+    if timepoint.split(' ')[-1]=='doublings':
+        timepoint_h = dt0*float(timepoint.split(' ')[0])
+    elif timepoint.split(' ')[-1]=='h':
+        timepoint_h = float(timepoint.split(' ')[0])
+    else:
+        print('unit of timepoint not recognized')
+        return
+    return timepoint_h
+
 
 def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,xaxis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False):
     '''
@@ -290,7 +362,7 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     if ylog:
         plt.yscale('log')
     else:
-        plt.ylim(0,200)
+        plt.ylim(0,max(dfpointIC['IC [%]']))#200)
     plt.grid(which='both',axis='y')
     
 
@@ -338,7 +410,7 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     return
 
 def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting_variations,IC,estimateIC=True):
-    columns = [category_to_plot[0],category_to_plot[1]]
+    columns = ['Date',category_to_plot[0],category_to_plot[1]]
     if category_to_plot[1]!=variations_in_category[1]:
         columns.append(variations_in_category[1])
     columns.extend(['mean growth rate [h^-1]','growth rate [h^-1]','Concentration','IC after','IC [%]'])
@@ -374,7 +446,7 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                         # if category1 in plotting_variations:
                         #     if not all(elem in set(replicate[variations_in_category[0]])    for elem in plotting_variations[category1]):
                         #         continue
-                        row=[category1,category2]
+                        row=[date,category1,category2]
                         if category_to_plot[1]!=variations_in_category[1]:
                             row.append(variation2)
                         
@@ -400,7 +472,7 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                             if m==None:
                                 continue
                             else:
-                                measuredIC=(0.5-n)/m
+                                measuredIC=(IC-n)/m
                         else:
                             measuredIC=min(odsCurTimepoint[odsCurTimepoint['normalizedODs']<IC][variations_in_category[0]])
                         row.extend([np.log(2)/dt0,np.log(2)/replicate.loc[idx,'unperturbed doublingtime'],measuredIC ,round(replicate.loc[idx,'OD'].Time[cur_timepoint],2), float('NaN')])
@@ -420,8 +492,8 @@ def cal_function(variations_in_category,odsCurTimepoint,IC):
         higher_than_IC=odsCurTimepoint[odsCurTimepoint[variations_in_category[0]]==higher_than_IC]
     except ValueError:
         return(None,None)
-    x=float(lower_than_IC[variations_in_category[0]])-float(higher_than_IC[variations_in_category[0]])
-    y=float(lower_than_IC['normalizedODs'])-float(higher_than_IC['normalizedODs'])
+    x=float(higher_than_IC[variations_in_category[0]])-float(lower_than_IC[variations_in_category[0]])
+    y=float(higher_than_IC['normalizedODs'])-float(lower_than_IC['normalizedODs'])
     m=y/x
     n=-m*float(lower_than_IC[variations_in_category[0]])+float(lower_than_IC['normalizedODs'])
     return(m,n)
