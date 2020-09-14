@@ -855,8 +855,7 @@ def translateStrainID(data,TranslateTo='combined'):
             print('strain-ID cannot be translated to {}'.format(TranslateTo))
             return(data)
     keys=list(table['strain ID'])
-    for i in range(len(set(data['strain']))):
-        dictionary = dict(zip(keys, values))
+    dictionary = dict(zip(keys, values))
     data['strain']=data['strain'].replace(dictionary)
     return(data)
     
