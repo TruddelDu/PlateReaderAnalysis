@@ -155,6 +155,12 @@ def smoothingData(data):
     for well in wells:
         data[well]=medfilt(data[well], kernel_size=3)
     return(data)    
+
+class InputError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
     
 def metainfo_import(file):
     """Imports metainfo of experiment from excel sheet. Must be located in the same folder as OD data and with the same name +'_metainfo' """
@@ -169,7 +175,10 @@ def metainfo_import(file):
     for well in get_wells():
         metainfo.append([well])
     wb = xlrd.open_workbook(filename = mfile)
-    worksheet = wb.sheet_by_name('Blatt1')
+    try:
+        worksheet = wb.sheet_by_name('Blatt1')
+    except xlrd.XLRDError:
+        raise InputError('Required worksheet of AnalysisInformation not found. Make sure to specify the path of the AnalysisInformation.xlsx sheet as specs_for_analysis.')
     active=False
     conc = False
     time_between_measurements = 0 # in hours
@@ -617,6 +626,8 @@ def background_correct(reader,data,metainfo,dtype):
     for medium in set(metainfo.media):
         if medium[:4]=='MOPS':
             medium='MOPS'
+        elif medium=='':
+            continue
         background = metainfo.loc[(metainfo['strain'] == 'BG') & (metainfo['media'].str.match(medium))]
         average= []
         for well in background['Well']:
@@ -742,14 +753,14 @@ def determine_doublingtime(dataOD,metainfo):
         metainfo.loc[i_wells,'unperturbed doublingtime'] = growthControl
     return metainfo
 
-def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot,variations_in_category):
+def data_excludes_but(data,data_exclude_but,plotting_variations,category_to_plot,variations_in_category,clean_replicates=True):
     """Removes all data from the set that has other variations in the given categories than the one defined.
         
     plotting_variations: dict.keys: categories; values: lists of variations you want to keep
     data_exclude_but: dict. keys: categories; values: lists of variations you want to keep
     """
     
-    if plotting_variations:
+    if plotting_variations and clean_replicates:
         for cat,var in zip(category_to_plot,variations_in_category):
             data=data.reset_index(drop=True) 
             if any(option in list(data[cat]) for option in plotting_variations.keys()):
@@ -844,7 +855,7 @@ def translateStrainID(data,TranslateTo='combined'):
             print('strain-ID cannot be translated to {}'.format(TranslateTo))
             return(data)
     keys=list(table['strain ID'])
-    for strain in set(data['strain']):
+    for i in range(len(set(data['strain']))):
         dictionary = dict(zip(keys, values))
     data['strain']=data['strain'].replace(dictionary)
     return(data)
