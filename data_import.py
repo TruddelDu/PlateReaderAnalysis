@@ -21,7 +21,10 @@ def analysis_specification(specs_for_analysis):
     if specs_for_analysis[-5:]!='.xlsx':
         return(print('specification of analysis in incorrect file format'))    
     wb = xlrd.open_workbook(filename = specs_for_analysis)
-    worksheet = wb.sheet_by_name('Blatt1')
+    try:
+        worksheet = wb.sheet_by_name('Blatt1')
+    except xlrd.XLRDError:
+        raise InputError('Required worksheet of AnalysisInformation not found. Make sure to specify the path of the AnalysisInformation.xlsx sheet as specs_for_analysis.')
     active=False
     for n_row in range(worksheet.nrows):
         if len(worksheet.cell(n_row, 0).value)<1:   #reset in empty rows
@@ -178,7 +181,7 @@ def metainfo_import(file):
     try:
         worksheet = wb.sheet_by_name('Blatt1')
     except xlrd.XLRDError:
-        raise InputError('Required worksheet of AnalysisInformation not found. Make sure to specify the path of the AnalysisInformation.xlsx sheet as specs_for_analysis.')
+        raise InputError('Required worksheet of AnalysisInformation not found. Make sure that you have a correctly named metainfo sheet for every experiment.')
     active=False
     conc = False
     time_between_measurements = 0 # in hours

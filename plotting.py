@@ -261,7 +261,8 @@ def plot_IC_interaction(data,plotting_variations,timepoint,save):
             if len(specify)==0:
                 continue
             specify=specify.pivot('Inducer1_Concentration','Inducer2_Concentration','OD normalized')
-            sns.heatmap(specify,vmax=100)
+            ax=sns.heatmap(specify,vmax=100)
+            ax.invert_yaxis()
             plt.xlabel(ind2)
             plt.ylabel(ind1)
             plt.savefig('{}{}TimepointIC_{}{}.svg'.format(save,timepoint.replace(' ','_'),remove_unit(ind1),remove_unit(ind2)).translate(translationTable), bbox_inches='tight',dpi=300)
@@ -328,15 +329,15 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     #MIC determination & if applicable normalization
     for category1 in set(dfpointIC[category_to_plot[0]]):
         if normalize:
+            #find the ic to normalize with
             ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(dfpointIC[variations_in_category[1]], normalize)),'Concentration'])#
-            if math.isnan(ic0):
-                x_values=set(dfpointIC[category_to_plot[1]])
-                while math.isnan(ic0):
-                    x_values.remove(norm_with(x_values, normalize))
-                    ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[category_to_plot[1]]==norm_with(x_values, normalize)),'Concentration'])
-                    if len(x_values)<2:
+            if math.isnan(ic0):# if the respective condition has no ic value
+                x_values=set(dfpointIC[variations_in_category[1]])
+                while math.isnan(ic0): # get the ic value of the next best condition
+                    x_values.remove(norm_with(x_values, normalize)) 
+                    ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(x_values, normalize)),'Concentration'])
+                    if len(x_values)<2: #
                         ic0=100
-                        normalize=False
             dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, 'IC [%]'] = dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1,'Concentration']/ic0*100
             dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, category_to_plot[0]] = '{} ({} {})'.format(category1, np.round(ic0,2), unit[remove_unit(category1)])
         
@@ -777,9 +778,9 @@ def plot_dose_response(data,save,category_to_plot,variations_in_category,devices
             plt.ylim(ylim_min,ylim_max)
 
             if normalizeX:
-                plt.xlabel('antibiotic concentration, normalized by the MIC')
+                plt.xlabel('{} concentration, normalized by the MIC'.format(remove_unit(inducer)))
             else:
-                plt.xlabel('antibiotic concentration [μg/ml]')
+                plt.xlabel(inducer)
             # #manipulate x axis range
             # xpl = np.array([5])
             # ypl = np.array([10**6])
