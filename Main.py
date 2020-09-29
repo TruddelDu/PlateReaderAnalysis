@@ -6,7 +6,7 @@ Created on Mon Sep  9 11:27:36 2019
 @author: angelika
 """
 
-specs_for_analysis = r"D:\Benutzer\Uni\Documents\CellWallAntibiotics\Lab\Experiments_Australia\AntibioticInteraction\200917_AntibioticInt_ImiNis\AnalysisInformation.xlsx"
+specs_for_analysis = r"C:\full\path\to\AnalysisInformation.xlsx"
 #%%
 
 import data_import as di
@@ -30,8 +30,8 @@ if True:
 if True:# MIC dose response
     for timepoint in ['10 h']:
         pl.plot_IC_interaction(data,plotting_variations,timepoint,save)
-#        pl.plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,
-#                     x_axis=category_to_plot[1],continuous_xaxis=False,IC=0.5,normalize=False,ylog=False,ttest=False)
+        pl.plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,
+                     x_axis=category_to_plot[1],continuous_xaxis=False,IC=0.5,normalize=False,ylog=False,ttest=False)
     pl.plot_dose_response(data,save,category_to_plot,variations_in_category,devices,y='OD',timepoints=['10 h'],SaveInduction=True)
 
 pl.plot_doublingtime(data,save,time_unit,xaxis=category_to_plot[1])
