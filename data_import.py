@@ -199,8 +199,8 @@ def metainfo_import(file):
             active=worksheet.cell(i, 0).value
             metainfo[0].append(active)
             
-            if worksheet.cell(i, 14).value=='Concentration':    #allow notation of inducer concentration if nessecary
-                metainfo[0].append('{}_Concentration'.format(active))
+            if worksheet.cell(i, 14).value:    #allow notation of inducer concentration if nessecary
+                metainfo[0].append('{}_{}'.format(active,worksheet.cell(i, 14).value))
                 conc=True
 
             else:

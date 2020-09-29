@@ -13,11 +13,12 @@ plt.rcParams.update(new_rc_params)
 import numpy as np
 import math
 import data_import as di
+# import timeit
 from scipy.stats import ttest_ind
 
 
 
-def select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates=True):
+def select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates):
     selection = data.loc[data[category_to_plot[0]]==category1]
     if not variations_in_category[0]==category_to_plot[0]:
         if category1 in plotting_variations and clean_replicates:
@@ -51,13 +52,14 @@ def select_data(data,category_to_plot,variations_in_category,category1,category2
         return selection
 
 
-def plot_timedependent_replicates(selection,category_to_plot,variations_in_category,category1,category2,time_unit,save,plot_object='OD'):
+def plot_timedependent_replicates(data,plot_object,category_to_plot,variations_in_category,plotting_variations,time_unit,save,devices,clean_replicates=False):
     cmap = sns.color_palette(palette='colorblind')
     translationTable = str.maketrans("μα", "ua")
+
     if plot_object=='LUM':
-        if 'LUM' in selection.columns:
+        if 'LUM' in data.columns:
             plot_object='LUM'
-        elif 'LUM/OD' in selection.columns:
+        elif 'LUM/OD' in data.columns:
             plot_object='LUM/OD'
         else:
             print('Data ({}) not found.'.format(plot_object))
@@ -65,123 +67,147 @@ def plot_timedependent_replicates(selection,category_to_plot,variations_in_categ
     elif plot_object!='OD':
         print('Data ({}) not found.'.format(plot_object))
         return
+            
+     
+    for category1 in set(data[category_to_plot[0]]):
+        for category2 in set(data[category_to_plot[1]]):
     
+            #extract revelevant data
+            selection = select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates)
+            if selection.empty:
+                continue
+            
 
-    for day in set(selection['Date']):
-        for replicate,num in zip(set(selection['unperturbed doublingtime']),range(len(set(selection['unperturbed doublingtime'])))):#if only one replicate was measured that day
+            for day in set(selection['Date']):
+                for replicate,num in zip(set(selection['unperturbed doublingtime']),range(len(set(selection['unperturbed doublingtime'])))):#if only one replicate was measured that day
+                    for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
+                        for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
+                            found_data =False
+                            var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
+                            if var_data.empty:
+                                continue 
+                            for ind in list(var_data.index.values):
+                                found_data=True
+                                time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
+                                var_data.loc[ind,plot_object].Time = var_data.loc[ind,plot_object].Time*time_factor
+                                sns.lineplot(data=var_data.loc[ind,plot_object],x='Time',y=plot_object,label='{} {}'.format(variation1,get_unit(category1)),palette=cmap)
+                        if not found_data:
+                            continue
+                        if plot_object=='OD':
+                            plt.ylim(0.001,2)
+                        elif plot_object=='LUM/OD':
+                            plt.ylim(10,6*(10**5))
+                        elif plot_object=='LUM':
+                            plt.ylim(1,3*(10**3))
+                        plt.grid(b=True, which = 'major')
+                        plt.grid(b=True, which = 'minor',linewidth=0.5)
+                        
+                        plt.ylabel(find_ylabel(plot_object))
+                        plt.xlabel('time [{}]'.format(time_unit))
+                        plt.yscale('log')
+                        plt.title('{}; {} - {}'.format(get_title(category2,variation2),remove_unit(category1),day))
+                        # Shrink current axis by 20%
+                        ax=plt.gca()
+                        box = ax.get_position()
+                        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+                        # Put a legend to the right of the current axis
+                        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+                        plt.savefig('{}timedependent{}_{}_{}_Rep{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
+                        plt.savefig('{}timedependent{}_{}_{}_Rep{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
+                        plt.close()#show()
+    return
+
+def plot_timedependent_averaged(data,plot_object,category_to_plot,variations_in_category,plotting_variations,time_unit,save,devices,clean_replicates=False):
+    translationTable = str.maketrans("μα", "ua")
+
+    if plot_object=='LUM':
+        if 'LUM' in data.columns:
+            plot_object='LUM'
+        elif 'LUM/OD' in data.columns:
+            plot_object='LUM/OD'
+        else:
+            print('Data ({}) not found.'.format(plot_object))
+            return
+    elif plot_object!='OD':
+        print('Data ({}) not found.'.format(plot_object))
+        return
+
+
+    for category1 in set(data[category_to_plot[0]]):
+        for category2 in set(data[category_to_plot[1]]):
+            #extract relevant data
+            selection = select_data(data,category_to_plot,variations_in_category,category1,category2,plotting_variations,clean_replicates)
+            if selection.empty:
+                continue
+           
             for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
+                dfplot=pd.DataFrame()
                 for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-                    found_data =False
-                    var_data=selection.loc[(selection['Date']==day) & (selection['unperturbed doublingtime']==replicate) & (selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
+                    var_data=selection.loc[(selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
                     if var_data.empty:
                         continue 
-                    for ind in list(var_data.index.values):
-                        found_data=True
-                        time_factor = time_modulation(time_unit,var_data.loc[ind,'unperturbed doublingtime'])
-                        var_data.loc[ind,plot_object].Time = var_data.loc[ind,plot_object].Time*time_factor
-                        sns.lineplot(data=var_data.loc[ind,plot_object],x='Time',y=plot_object,label='{} {}'.format(variation1,get_unit(category1)),palette=cmap)
-                if not found_data:
-                    continue
+                    
+                    time_factor = time_modulation(time_unit,np.mean(var_data['unperturbed doublingtime']))
+                    for ind,exp in zip(list(var_data.index.values),range(len(var_data.index.values))):
+                        try:
+                            time_data = var_data.loc[ind,plot_object].Time*time_factor
+                            labelcol = ['{} {}'.format(variation1,get_unit(category1))] * len(time_data)
+                            tmp_df = pd.DataFrame(list(zip(time_data,var_data.loc[ind,plot_object][plot_object],labelcol)),columns=['Time /{}'.format(time_unit),plot_object,remove_unit(category1)])
+                            dfplot = pd.concat([dfplot,tmp_df],sort=False)
+                        except AttributeError:
+                            pass
+                cmap=sns.color_palette(palette='colorblind',n_colors=len(set(dfplot[remove_unit(category1)])))
+                # stop1 = timeit.default_timer()
+                sns.lineplot(data=dfplot, x='Time /{}'.format(time_unit) , y=plot_object, hue=remove_unit(category1),palette=cmap)
+                # stop2 = timeit.default_timer()
                 if plot_object=='OD':
                     plt.ylim(0.001,2)
                 elif plot_object=='LUM/OD':
-                    plt.ylim(10,6*(10**5))
+                    if 'CLARIOstar' in devices:
+                        ylim_max=2*10**8
+                    else:
+                        ylim_max=3*(10**3)
+                    if not 'CLARIOstar' in devices:
+                        ylim_min=5*10**0
+                    elif len(devices)>1:
+                        ylim_min=5*10**0
+                    else:
+                        ylim_min=10**3
+                    plt.ylim(ylim_min,ylim_max)
                 elif plot_object=='LUM':
-                    plt.ylim(1,3*(10**3))
+                    if 'CLARIOstar' in devices:
+                        ylim_max=2*10**8
+                    else:
+                        ylim_max=2*10**5
+                    if not 'CLARIOstar' in devices:
+                        ylim_min=1
+                    elif len(devices)>1:
+                        ylim_min=1
+                    else:
+                        ylim_min=1
+                    plt.ylim(ylim_min,ylim_max)
+        
                 plt.grid(b=True, which = 'major')
                 plt.grid(b=True, which = 'minor',linewidth=0.5)
-                
                 plt.ylabel(find_ylabel(plot_object))
                 plt.xlabel('time [{}]'.format(time_unit))
                 plt.yscale('log')
-                plt.title('{}; {} - {}'.format(get_title(category2,variation2),remove_unit(category1),day))
+                plt.title('{}; {} (n={})'.format(get_title(category2,variation2),remove_unit(category1),len(var_data)))
                 # Shrink current axis by 20%
                 ax=plt.gca()
                 box = ax.get_position()
                 ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
                 # Put a legend to the right of the current axis
                 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-                plt.savefig('{}timedependent{}_{}_{}_Rep{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
-                plt.savefig('{}timedependent{}_{}_{}_Rep{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1),num).translate(translationTable), bbox_inches='tight',dpi=300)
+                # stop3 = timeit.default_timer()
+                plt.savefig('{}AVGtimedependent{}_{}_{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
+                plt.savefig('{}AVGtimedependent{}_{}_{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
+                # stop4= timeit.default_timer()
                 plt.close()#show()
-    return
-
-def plot_timedependent_averaged(selection,category_to_plot,variations_in_category,category1,category2,time_unit,save,devices,plot_object='OD'):
-    translationTable = str.maketrans("μα", "ua")
-    if plot_object=='LUM':
-        if 'LUM' in selection.columns:
-            plot_object='LUM'
-        elif 'LUM/OD' in selection.columns:
-            plot_object='LUM/OD'
-        else:
-            print('Data ({}) not found.'.format(plot_object))
-            return
-    elif plot_object!='OD':
-        print('Data ({}) not found.'.format(plot_object))
-        return
-   
-    for variation2 in get_variation_of_category(selection,category_to_plot[1],variations_in_category[1],category2):
-        dfplot=pd.DataFrame()
-        for variation1 in get_variation_of_category(selection,category_to_plot[0],variations_in_category[0],category1):
-            var_data=selection.loc[(selection[variations_in_category[0]]==variation1) & (selection[variations_in_category[1]]==variation2)]
-            if var_data.empty:
-                continue 
-            
-            time_factor = time_modulation(time_unit,np.mean(var_data['unperturbed doublingtime']))
-            for ind,exp in zip(list(var_data.index.values),range(len(var_data.index.values))):
-                try:
-                    time_data = var_data.loc[ind,plot_object].Time*time_factor
-                    labelcol = ['{} {}'.format(variation1,get_unit(category1))] * len(time_data)
-                    tmp_df = pd.DataFrame(list(zip(time_data,var_data.loc[ind,plot_object][plot_object],labelcol)),columns=['Time /{}'.format(time_unit),plot_object,remove_unit(category1)])
-                    dfplot = pd.concat([dfplot,tmp_df],sort=False)
-                except AttributeError:
-                    pass
-        cmap=sns.color_palette(palette='colorblind',n_colors=len(set(dfplot[remove_unit(category1)])))
-        sns.lineplot(data=dfplot, x='Time /{}'.format(time_unit) , y=plot_object, hue=remove_unit(category1),palette=cmap)#label='{} {}'.format(variation1,'/'.join(category1.split('/')[1:])))
-        if plot_object=='OD':
-            plt.ylim(0.001,2)
-        elif plot_object=='LUM/OD':
-            if 'CLARIOstar' in devices:
-                ylim_max=2*10**8
-            else:
-                ylim_max=3*(10**3)
-            if not 'CLARIOstar' in devices:
-                ylim_min=5*10**0
-            elif len(devices)>1:
-                ylim_min=5*10**0
-            else:
-                ylim_min=10**3
-            plt.ylim(ylim_min,ylim_max)
-        elif plot_object=='LUM':
-            if 'CLARIOstar' in devices:
-                ylim_max=2*10**8
-            else:
-                ylim_max=2*10**5
-            if not 'CLARIOstar' in devices:
-                ylim_min=1
-            elif len(devices)>1:
-                ylim_min=1
-            else:
-                ylim_min=1
-            plt.ylim(ylim_min,ylim_max)
-
-        plt.grid(b=True, which = 'major')
-        plt.grid(b=True, which = 'minor',linewidth=0.5)
-        plt.ylabel(find_ylabel(plot_object))
-        plt.xlabel('time [{}]'.format(time_unit))
-        plt.yscale('log')
-        plt.title('{}; {}'.format(get_title(category2,variation2),remove_unit(category1)))
-        # Shrink current axis by 20%
-        ax=plt.gca()
-        box = ax.get_position()
-        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-        # Put a legend to the right of the current axis
-        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-        plt.savefig('{}AVGtimedependent{}_{}_{}.svg'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-        plt.savefig('{}AVGtimedependent{}_{}_{}.png'.format(save,plot_object.replace('/','-'),get_save_cat(category2,variation2),remove_unit(category1)).translate(translationTable), bbox_inches='tight',dpi=300)
-        plt.close()#show()
-
-    print('plotted averaged time dependent behaviour of {} with {}'.format(plot_object,' & '.join([str(category1),str(category2)])))
+                
+                # print('Preprocessing: {};\n Plotting: {};\n Postprocessing: {};\n Saving: {};\n Total: {}'.format(stop1-start,stop2-stop1,stop3-stop2,stop4-stop3,stop4-start))
+              
+            print('plotted averaged time dependent behaviour of {} with {}'.format(plot_object,' & '.join([str(category1),str(category2)])))
     return
     
 def time_modulation(time_unit,doublingt0):
@@ -282,13 +308,13 @@ def find_timepoint(timepoint,dt0):
     return timepoint_h
 
 
-def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,xaxis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False):
+def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,x_axis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False,singles=False):
     '''
     Plots the concentation inhibiting growth to a given percentage after a given timeframe (doublings or hours).
 
     Parameters
     ----------
-    xaxis : TYPE, optional
+    x_axis : TYPE, optional
         DESCRIPTION. The default is False.
     continuous_xaxis : TYPE, optional
         DESCRIPTION. The default is True.
@@ -307,7 +333,6 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
 
     '''
     
-    translationTable = str.maketrans("μα", "ua")   
     dfpointIC,unit=determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting_variations,IC,estimateIC=True)
     
     if ttest:
@@ -326,47 +351,127 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
                 else:
                     print('{}, {} has probably different distributions as WT'.format(strain,ab))
     
-    #MIC determination & if applicable normalization
+    #IC normalization
     for category1 in set(dfpointIC[category_to_plot[0]]):
         if normalize:
             #find the ic to normalize with
-            ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(dfpointIC[variations_in_category[1]], normalize)),'Concentration'])#
+            ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(dfpointIC[variations_in_category[1]], normalize)),'inhibitory concentration'])#
             if math.isnan(ic0):# if the respective condition has no ic value
                 x_values=set(dfpointIC[variations_in_category[1]])
                 while math.isnan(ic0): # get the ic value of the next best condition
                     x_values.remove(norm_with(x_values, normalize)) 
-                    ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(x_values, normalize)),'Concentration'])
+                    ic0= np.mean(dfpointIC.loc[(dfpointIC[category_to_plot[0]]==category1) & (dfpointIC[variations_in_category[1]]==norm_with(x_values, normalize)),'inhibitory concentration'])
                     if len(x_values)<2: #
                         ic0=100
-            dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, 'IC [%]'] = dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1,'Concentration']/ic0*100
+            dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, 'IC [%]'] = dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1,'inhibitory concentration']/ic0*100
             dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, category_to_plot[0]] = '{} ({} {})'.format(category1, np.round(ic0,2), unit[remove_unit(category1)])
-        
+            y_axis='IC [%]'
         else:
-            dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1, 'IC [%]'] = dfpointIC.loc[dfpointIC[category_to_plot[0]] == category1,'Concentration']
+            y_axis='inhibitory concentration'        
+        
+    save_ICs(dfpointIC,save,timepoint,category_to_plot,variations_in_category)
+    
+    if singles:
+        plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save)
+    else:
+        plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save)
+    
+    print('IC dose response plottet for timpoint {}'.format(timepoint))
+    return
 
-    save_ICs(dfpointIC,save,timepoint,translationTable,category_to_plot,variations_in_category)
+def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save):
+    translationTable = str.maketrans("μα", "ua")
+    for category1 in set(dfpointIC[category_to_plot[0]]):
+        selection=dfpointIC.loc[dfpointIC[category_to_plot[0]]==category1]
+        
+        if x_axis=='growth rate [h^-1]':
+            # cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
+            sns.scatterplot(data=selection,x='growth rate [h^-1]',y=y_axis,hue=category_to_plot[0])
+            sns.lineplot(data=selection,x='mean growth rate [h^-1]',y=y_axis,hue=category_to_plot[0],legend=False)
+        else:
+            if continuous_xaxis:
+                # cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
+                sns.scatterplot(data=selection,x=x_axis,y=y_axis,hue=category_to_plot[0])
+                sns.lineplot(data=selection,x=x_axis,y=y_axis,hue=category_to_plot[0],legend=False)
+            else:
+                # cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
+                sns.barplot(data=selection,x=variations_in_category[1],y=y_axis,hue=category_to_plot[0],ci=None)
+                sns.swarmplot(x=variations_in_category[1], y=y_axis, hue=category_to_plot[0], data=selection, dodge=True,color='black')
+                
+    
+    
+        plt.ylim(0,max(selection[y_axis])*1.1)
+        plt.ylabel('IC{}'.format(IC*100))
+                
+        plt.grid(which='both',axis='y')
+        
+        
+        actual_times=list(set(selection['IC after']))
+        actual_times.sort()
+        actual_times = [str(i) for i in actual_times]
+        plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
+       
+        
+        #increase figure width when plotting many categories on xaxis 
+        if x_axis!='growth rate [h^-1]' and not continuous_xaxis:
+            if len(set(selection[category_to_plot[1]]))>5:
+                fig=plt.gcf()
+                size=fig.get_size_inches()
+                fig.set_size_inches(size[0]/5*len(set(selection[category_to_plot[1]])),size[1])
+                plt.xticks(rotation=-90)
+            else:
+                plt.xticks(rotation=-20)
+        # Shrink current axis by 20%
+        ax=plt.gca()
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    
+        # legend to the right of the current axis and remove entries for single replicates(=scatter plot)
+        if continuous_xaxis==True or x_axis=='growth rate [h^-1]':        
+            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        
+        elif len(ax.get_legend_handles_labels()[1])<len(set(selection[x_axis])):
+            handles, labels = ax.get_legend_handles_labels()
+            handles=handles[:len(set(selection[x_axis]))+1]
+            labels=labels[:len(set(selection[x_axis]))+1]
+            ax.legend(handles, labels,loc='center left', bbox_to_anchor=(1, 0.5))       
+        else:
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles[- len(set(selection[category_to_plot[0]])):], labels[- len(set(selection[category_to_plot[0]])):],loc='center left', bbox_to_anchor=(1, 0.5))
+    
+        plt.savefig('{}{}TimepointIC_{}_{}.svg'.format(save,timepoint.replace(' ','_'),remove_unit(category1).replace(' ',''),x_axis.replace(' ','')).translate(translationTable), bbox_inches='tight',dpi=300)
+        plt.savefig('{}{}TimepointIC_{}_{}.png'.format(save,timepoint.replace(' ','_'),remove_unit(category1).replace(' ',''),x_axis.replace(' ','')).translate(translationTable), bbox_inches='tight',dpi=300)
+        plt.close()#show()
+    
+    return
 
-    if xaxis=='growth rate [h^-1]':
+def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save):
+    translationTable = str.maketrans("μα", "ua")
+    if x_axis=='growth rate [h^-1]':
         cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
-        sns.scatterplot(data=dfpointIC,x='growth rate [h^-1]',y='IC [%]',hue=category_to_plot[0])
-        sns.lineplot(data=dfpointIC,x='mean growth rate [h^-1]',y='IC [%]',hue=category_to_plot[0],legend=False,ci=None,palette=cmap)
+        sns.scatterplot(data=dfpointIC,x='growth rate [h^-1]',y=y_axis,hue=category_to_plot[0])
+        sns.lineplot(data=dfpointIC,x='mean growth rate [h^-1]',y=y_axis,hue=category_to_plot[0],legend=False,ci=None,palette=cmap)
     else:
         if continuous_xaxis:
             cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
-            sns.scatterplot(data=dfpointIC,x=xaxis,y='IC [%]',hue=category_to_plot[0])
-            sns.lineplot(data=dfpointIC,x=xaxis,y='IC [%]',hue=category_to_plot[0],legend=False,ci=None,palette=cmap)
+            sns.scatterplot(data=dfpointIC,x=x_axis,y=y_axis,hue=category_to_plot[0])
+            sns.lineplot(data=dfpointIC,x=x_axis,y=y_axis,hue=category_to_plot[0],legend=False,ci=None,palette=cmap)
         else:
             cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
-            sns.barplot(data=dfpointIC,x=category_to_plot[1],y='IC [%]',hue=category_to_plot[0],ci=None,palette=cmap)
-            sns.swarmplot(x=category_to_plot[1], y='IC [%]', hue=category_to_plot[0], data=dfpointIC, dodge=True,color='black')
+            sns.barplot(data=dfpointIC,x=variations_in_category[1],y=y_axis,hue=category_to_plot[0],ci=None,palette=cmap)
+            sns.swarmplot(x=variations_in_category[1], y=y_axis, hue=category_to_plot[0], data=dfpointIC, dodge=True,color='black')
             
     if ylog:
         plt.yscale('log')
+        plt.ylim(min(dfpointIC[y_axis])*0.9,max(dfpointIC[y_axis])*1.1)
     else:
-        plt.ylim(0,max(dfpointIC['IC [%]']))#200)
+        plt.ylim(0,max(dfpointIC[y_axis])*1.1)
+    if not normalize:
+        plt.ylabel('IC{}'.format(IC*100))
+            
     plt.grid(which='both',axis='y')
     
-
+    
     actual_times=list(set(dfpointIC['IC after']))
     actual_times.sort()
     actual_times = [str(i) for i in actual_times]
@@ -374,11 +479,11 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
    
     
     #increase figure width when plotting many categories on xaxis 
-    if xaxis!='growth rate [h^-1]' and not continuous_xaxis:
-        if len(set(data[category_to_plot[1]]))>5:
+    if x_axis!='growth rate [h^-1]' and not continuous_xaxis:
+        if len(set(dfpointIC[category_to_plot[1]]))>5:
             fig=plt.gcf()
             size=fig.get_size_inches()
-            fig.set_size_inches(size[0]/5*len(set(data[category_to_plot[1]])),size[1])
+            fig.set_size_inches(size[0]/5*len(set(dfpointIC[category_to_plot[1]])),size[1])
             plt.xticks(rotation=-90)
         else:
             plt.xticks(rotation=-20)
@@ -386,35 +491,31 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     ax=plt.gca()
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    # Put a legend to the right of the current axis
-    if continuous_xaxis==True or xaxis=='growth rate [h^-1]':        
+
+    # legend to the right of the current axis and remove entries for single replicates(=scatter plot)
+    if continuous_xaxis==True or x_axis=='growth rate [h^-1]':        
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     
-    elif len(ax.get_legend_handles_labels()[1])<len(set(dfpointIC[xaxis])):
+    elif len(ax.get_legend_handles_labels()[1])<len(set(dfpointIC[x_axis])):
         handles, labels = ax.get_legend_handles_labels()
-        handles=handles[:len(set(dfpointIC[xaxis]))+1]
-        labels=labels[:len(set(dfpointIC[xaxis]))+1]
+        handles=handles[:len(set(dfpointIC[x_axis]))+1]
+        labels=labels[:len(set(dfpointIC[x_axis]))+1]
         ax.legend(handles, labels,loc='center left', bbox_to_anchor=(1, 0.5))       
     else:
         handles, labels = ax.get_legend_handles_labels()
-        ax.legend(handles[-2:], labels[-2:],loc='center left', bbox_to_anchor=(1, 0.5))
-    if not normalize:
-        plt.ylabel('IC{}'.format(IC*100))
-        if not ylog:
-            plt.ylim(0,max(dfpointIC['IC [%]'])*1.1)
-        else:
-            plt.ylim(min(dfpointIC['IC [%]'])*0.9,max(dfpointIC['IC [%]'])*1.1)
-    plt.savefig('{}{}TimepointIC.svg'.format(save,timepoint.replace(' ','_')).translate(translationTable), bbox_inches='tight',dpi=300)
-    plt.savefig('{}{}TimepointIC.png'.format(save,timepoint.replace(' ','_')).translate(translationTable), bbox_inches='tight',dpi=300)
+        ax.legend(handles[- len(set(dfpointIC[category_to_plot[0]])):], labels[- len(set(dfpointIC[category_to_plot[0]])):],loc='center left', bbox_to_anchor=(1, 0.5))
+
+    plt.savefig('{}{}TimepointIC_{}.svg'.format(save,timepoint.replace(' ','_'),x_axis.replace(' ','')).translate(translationTable), bbox_inches='tight',dpi=300)
+    plt.savefig('{}{}TimepointIC_{}.png'.format(save,timepoint.replace(' ','_'),x_axis.replace(' ','')).translate(translationTable), bbox_inches='tight',dpi=300)
     plt.close()#show()
-    print('IC dose response plottet for timpoint {}'.format(timepoint))
+    
     return
 
 def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting_variations,IC,estimateIC=True):
     columns = ['Date',category_to_plot[0],category_to_plot[1]]
     if category_to_plot[1]!=variations_in_category[1]:
         columns.append(variations_in_category[1])
-    columns.extend(['mean growth rate [h^-1]','growth rate [h^-1]','Concentration','IC after','IC [%]'])
+    columns.extend(['mean growth rate [h^-1]','growth rate [h^-1]','inhibitory concentration','IC after','IC [%]'])
     dfpointIC = [columns]
     unit = dict()
     for category2 in set(data[category_to_plot[1]]):
@@ -514,7 +615,8 @@ def norm_with(column,min_or_max):
     else:
         return 1 # normalization with 1 == no normalization
         
-def save_ICs(dfpointIC,save,timepoint,translationTable,category_to_plot,variations_in_category):
+def save_ICs(dfpointIC,save,timepoint,category_to_plot,variations_in_category):
+    translationTable = str.maketrans("μα", "ua")
     if variations_in_category[1]==category_to_plot[1]:
         ICs=[[category_to_plot[1],category_to_plot[0],'IC mean','IC std','IC values']]
         for category2 in set(dfpointIC[category_to_plot[1]]):
@@ -531,7 +633,7 @@ def save_ICs(dfpointIC,save,timepoint,translationTable,category_to_plot,variatio
                 for variation2 in set(pre_sel[variations_in_category[1]]):
                     sel=pre_sel.loc[pre_sel[variations_in_category[1]]==variation2]
                     for category1 in set(sel[category_to_plot[0]]):
-                        ic=list(sel.loc[sel[category_to_plot[0]]==category1,'Concentration'])
+                        ic=list(sel.loc[sel[category_to_plot[0]]==category1,'inhibitory concentration'])
                         mean=np.mean(ic)
                         std=np.std(ic)
                         ICs.append([category2,variation2,']'.join(category1.split(']')[:-1])+']',mean,std,ic])
@@ -562,8 +664,11 @@ def get_title(category,variation):
     unit = get_unit(category)
     if cat==str(variation):
         return cat
-    elif unit[0]=='%':
-        return '{} {}{}'.format(cat,variation,unit)
+    elif unit:
+        if unit[0]=='%':
+            return '{} {}{}'.format(cat,variation,unit)
+        else:
+            return '{} {} {}'.format(cat,variation,unit)
     else:
         return '{} {} {}'.format(cat,variation,unit)
     
