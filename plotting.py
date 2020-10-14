@@ -276,19 +276,28 @@ def plot_IC_interaction(data,plotting_variations,timepoint,save):
         timepoint_h=find_timepoint(timepoint,dt0)
         cur_timepoint = find_idx_to_closest_value(data.loc[c_i,'OD'].Time,timepoint_h)
         od_control=float(control.loc[c_i,'OD'].OD[cur_timepoint])
-        tmp.extend([od_challenged,od_challenged/od_control*100])
+        tmp.extend([od_challenged,100 - od_challenged/od_control*100])
         ODs.append(tmp)
         
     ODs=pd.DataFrame(ODs[1:],columns=ODs[0])
+    # ODs['OD normalized']=round(ODs['OD normalized']).astype(int)
+    ODs.loc[ODs['OD normalized']<0,'OD normalized']=0
     
     for ind1 in set(ODs['Inducer1']):
         for ind2 in set(ODs['Inducer2']):
             specify=ODs.loc[np.logical_and(ODs['Inducer1']==ind1,ODs['Inducer2']==ind2)]
-            if len(specify)==0:
+            heatmap_df=pd.DataFrame()
+            for conc1 in plotting_variations[ind1]:
+                specify_conc1=specify.loc[specify['Inducer1_Concentration']==conc1]
+                for conc2 in plotting_variations[ind2]:
+                    specfiy_conc2=specify_conc1.loc[specify_conc1['Inducer2_Concentration']==conc2]
+                    heatmap_df.loc[conc1,conc2]=np.mean(specfiy_conc2['OD normalized'])
                 continue
-            specify=specify.pivot('Inducer1_Concentration','Inducer2_Concentration','OD normalized')
-            ax=sns.heatmap(specify,vmax=100)
-            ax.invert_yaxis()
+            heatmap_df=round(heatmap_df).astype(int)
+            #specify=specify.pivot('Inducer1_Concentration','Inducer2_Concentration','OD normalized')
+            ax=sns.heatmap(heatmap_df,annot=True, fmt='d', vmax=100, cmap='viridis_r')
+            # ax.invert_yaxis()
+            ax.invert_xaxis()
             plt.xlabel(ind2)
             plt.ylabel(ind1)
             plt.savefig('{}{}TimepointIC_{}{}.svg'.format(save,timepoint.replace(' ','_'),remove_unit(ind1),remove_unit(ind2)).translate(translationTable), bbox_inches='tight',dpi=300)
@@ -372,14 +381,14 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     save_ICs(dfpointIC,save,timepoint,category_to_plot,variations_in_category)
     
     if singles:
-        plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save)
+        plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,set(data['media']))
     else:
-        plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save)
+        plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save,set(data['media']))
     
     print('IC dose response plottet for timpoint {}'.format(timepoint))
     return
 
-def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save):
+def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,media):
     translationTable = str.maketrans("μα", "ua")
     for category1 in set(dfpointIC[category_to_plot[0]]):
         selection=dfpointIC.loc[dfpointIC[category_to_plot[0]]==category1]
@@ -409,7 +418,8 @@ def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoin
         actual_times=list(set(selection['IC after']))
         actual_times.sort()
         actual_times = [str(i) for i in actual_times]
-        plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
+        # plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
+        plt.title('IC{} determined after {}'.format(int(IC*100),timepoint))
        
         
         #increase figure width when plotting many categories on xaxis 
@@ -421,6 +431,9 @@ def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoin
                 plt.xticks(rotation=-90)
             else:
                 plt.xticks(rotation=-20)
+        elif x_axis=='growth rate [h^-1]':
+            if all('MOPS' in elem    for elem in media):
+                    plt.xlim(0.25, 1)
         # Shrink current axis by 20%
         ax=plt.gca()
         box = ax.get_position()
@@ -445,7 +458,7 @@ def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoin
     
     return
 
-def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save):
+def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save,media):
     translationTable = str.maketrans("μα", "ua")
     if x_axis=='growth rate [h^-1]':
         cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
@@ -475,7 +488,8 @@ def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x
     actual_times=list(set(dfpointIC['IC after']))
     actual_times.sort()
     actual_times = [str(i) for i in actual_times]
-    plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
+    # plt.title('IC{} determined after {} ({} h)'.format(int(IC*100),timepoint,' h,'.join(actual_times)))
+    plt.title('IC{} determined after {}'.format(int(IC*100),timepoint))
    
     
     #increase figure width when plotting many categories on xaxis 
@@ -487,6 +501,9 @@ def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x
             plt.xticks(rotation=-90)
         else:
             plt.xticks(rotation=-20)
+    elif x_axis=='growth rate [h^-1]':
+        if all('MOPS' in elem    for elem in media):
+                plt.xlim(0.25, 1)
     # Shrink current axis by 20%
     ax=plt.gca()
     box = ax.get_position()
@@ -546,8 +563,8 @@ def determine_IC(category_to_plot,variations_in_category,data,timepoint,plotting
                         
                         # #remove replicates from analysis, which miss parts of the dataset 
                         # if category1 in plotting_variations:
-                        #     if not all(elem in set(replicate[variations_in_category[0]])    for elem in plotting_variations[category1]):
-                        #         continue
+                        #      if not all(elem in set(replicate[variations_in_category[0]])    for elem in plotting_variations[category1]):
+                        #          continue
                         row=[date,category1,category2]
                         if category_to_plot[1]!=variations_in_category[1]:
                             row.append(variation2)
@@ -622,7 +639,7 @@ def save_ICs(dfpointIC,save,timepoint,category_to_plot,variations_in_category):
         for category2 in set(dfpointIC[category_to_plot[1]]):
             sel=dfpointIC.loc[dfpointIC[category_to_plot[1]]==category2]
             for category1 in set(sel[category_to_plot[0]]):
-                ic=list(sel.loc[sel[category_to_plot[0]]==category1,'Concentration'])
+                ic=list(sel.loc[sel[category_to_plot[0]]==category1,'inhibitory concentration'])
                 mean=np.mean(ic)
                 std=np.std(ic)
                 ICs.append([category2,category1,mean,std,ic])
