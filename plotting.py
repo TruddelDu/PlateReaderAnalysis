@@ -15,6 +15,7 @@ import math
 import data_import as di
 # import timeit
 from scipy.stats import ttest_ind
+from sklearn.linear_model import LinearRegression
 
 
 
@@ -317,7 +318,7 @@ def find_timepoint(timepoint,dt0):
     return timepoint_h
 
 
-def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,x_axis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False,singles=False):
+def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,timepoint,save,x_axis=False,continuous_xaxis=True,IC=0.3,normalize='min',ylog=False,ttest=False,singles=False,linReg=False):
     '''
     Plots the concentation inhibiting growth to a given percentage after a given timeframe (doublings or hours).
 
@@ -381,18 +382,33 @@ def plot_ICs(data,category_to_plot,variations_in_category,plotting_variations,ti
     save_ICs(dfpointIC,save,timepoint,category_to_plot,variations_in_category)
     
     if singles:
-        plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,set(data['media']))
+        plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,set(data['media']),linReg)
     else:
         plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,ylog,normalize,save,set(data['media']))
     
     print('IC dose response plottet for timpoint {}'.format(timepoint))
     return
 
-def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,media):
+def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x_axis,continuous_xaxis,y_axis,save,media,linReg):
     translationTable = str.maketrans("μα", "ua")
     for category1 in set(dfpointIC[category_to_plot[0]]):
         selection=dfpointIC.loc[dfpointIC[category_to_plot[0]]==category1]
         
+        if continuous_xaxis and linReg:
+            x=np.array(selection[x_axis]).reshape(-1,1)
+            y=np.array(selection['inhibitory concentration']).reshape(-1,1)
+            reg=LinearRegression().fit(x,y)
+            if x_axis=='growth rate [h^-1]':
+                print('{}: y={:.3f}x+{:.3f}; score: {:.2f}'.format(category1,reg.coef_[0][0],reg.intercept_[0],reg.score(x, y)))
+                x_meanGR=np.array(selection['mean growth rate [h^-1]']).reshape(-1,1)
+                x_meanGR=np.sort(x_meanGR,axis=None).reshape(-1,1)
+                plt.plot(x_meanGR,reg.predict(x_meanGR),color='black')
+            else:
+                x=np.sort(x,axis=None).reshape(-1,1)
+                plt.plot(x,reg.predict(x))
+            # reg.score(x, y)
+        elif linReg:
+            print('Linear regression not possible due to non continous x axis.')
         if x_axis=='growth rate [h^-1]':
             # cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
             sns.scatterplot(data=selection,x='growth rate [h^-1]',y=y_axis,hue=category_to_plot[0])
@@ -408,8 +424,24 @@ def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoin
                 sns.swarmplot(x=variations_in_category[1], y=y_axis, hue=category_to_plot[0], data=selection, dodge=True,color='black')
                 
     
-    
-        plt.ylim(0,max(selection[y_axis])*1.1)
+        #for gr.dep paper:
+        if 'Ampicillin' in category1:
+            plt.ylim(0,0.35)
+            # plt.yscale('log')
+        elif 'Bacitracin'in category1:
+            plt.ylim(0,3.7)
+        elif 'Laspartomycin'in category1:
+            plt.ylim(0,12)
+        elif 'Nisin'in category1:
+            plt.ylim(0,45)
+        elif 'Ramoplanin'in category1:
+            plt.ylim(0,0.45)
+        elif 'Tunicamycin'in category1:
+            plt.ylim(0,2.5)
+        elif 'Vancomycin'in category1:
+            plt.ylim(0,0.14)
+        else:
+            plt.ylim(0,max(selection[y_axis])*1.1)
         plt.ylabel('IC{}'.format(IC*100))
                 
         plt.grid(which='both',axis='y')
@@ -433,7 +465,7 @@ def plot_singleICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoin
                 plt.xticks(rotation=-20)
         elif x_axis=='growth rate [h^-1]':
             if all('MOPS' in elem    for elem in media):
-                    plt.xlim(0.25, 1)
+                    plt.xlim(0.25, 1.1)
         # Shrink current axis by 20%
         ax=plt.gca()
         box = ax.get_position()
@@ -471,6 +503,7 @@ def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x
             sns.lineplot(data=dfpointIC,x=x_axis,y=y_axis,hue=category_to_plot[0],legend=False,ci=None,palette=cmap)
         else:
             cmap = sns.color_palette(palette='colorblind', n_colors=len(set(dfpointIC[category_to_plot[0]])))
+            # sns.barplot(data=dfpointIC,x=category_to_plot[0],y=y_axis,hue=variations_in_category[1])#,palette=cmap)
             sns.barplot(data=dfpointIC,x=variations_in_category[1],y=y_axis,hue=category_to_plot[0],ci=None,palette=cmap)
             sns.swarmplot(x=variations_in_category[1], y=y_axis, hue=category_to_plot[0], data=dfpointIC, dodge=True,color='black')
             
@@ -478,7 +511,9 @@ def plot_allICs(dfpointIC,category_to_plot,variations_in_category,IC,timepoint,x
         plt.yscale('log')
         plt.ylim(min(dfpointIC[y_axis])*0.9,max(dfpointIC[y_axis])*1.1)
     else:
-        plt.ylim(0,max(dfpointIC[y_axis])*1.1)
+        #for gr.dep paper
+        plt.ylim(0,370)
+        #plt.ylim(0,max(dfpointIC[y_axis])*1.1)
     if not normalize:
         plt.ylabel('IC{}'.format(IC*100))
             
@@ -706,8 +741,10 @@ def plot_doublingtime(data,save,time_unit,xaxis,csv=False):
     for i in range(len(control_only)):
         if control_only.loc[i,'Well']!=control_only.loc[i,'control well']:
             control_only = control_only.drop(i, axis=0)
-    sns.barplot(data=control_only,x=xaxis,y='unperturbed doublingtime',ci=None)
-    sns.swarmplot(data=control_only,x=xaxis,y='unperturbed doublingtime', dodge=True,color='black')
+    # sns.barplot(data=control_only,x=xaxis,y='unperturbed doublingtime',ci=None)
+    # sns.swarmplot(data=control_only,x=xaxis,y='unperturbed doublingtime', dodge=True,color='black')
+    sns.barplot(data=control_only,x=xaxis,y='unperturbed doublingtime',hue='media',ci=None)
+    sns.swarmplot(data=control_only,x=xaxis,y='unperturbed doublingtime',hue='media', dodge=True,color='black')
     plt.ylabel('unperturbed doublingtime [1/{}]'.format(time_unit))
     if len(set(control_only[xaxis]))>5:
         plt.xticks(rotation=-90)

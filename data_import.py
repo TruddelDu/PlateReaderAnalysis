@@ -294,6 +294,12 @@ def find_time_unit(n_row,table):
     else:
         print('Could not find unit of time')
 
+class DateError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,time_unit):
     """Reads OD data of the spectrostar reader. This reader cannot read luminescence."""
     wells=get_wells()
@@ -305,6 +311,7 @@ def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,ti
             table=pd.read_excel('{0}{1}.{2}'.format(file[0],i_run+1,file[1]), header=None)
             begin_of_run=table[10][1].split()
             begin_of_run[1]=begin_of_run[1].split(':')
+            date_of_run=table[8][1].split(' ')[1].split('/')
             if begin_of_run[2]=='PM' and begin_of_run[1][0]!='12':
                 pm=12
             else:
@@ -331,10 +338,16 @@ def read_spectrostar(file,metainfo,time_between_measurements,reader,smoothing,ti
             table=table.dropna()
             if i_run==0:
                 dataOD=table.copy()
-                begin_of_experiment=begin_of_run
+                begin_of_experiment=[begin_of_run,date_of_run]                
                 metainfo.loc[metainfo['plate run']==i_run+1,'plate run - start time']=0
             else:
-                time_dif=float(begin_of_run-begin_of_experiment)
+                time_dif=float(begin_of_run-begin_of_experiment[0])
+                if date_of_run!=begin_of_experiment[1]:
+                    #next measurement was not started on the same day as the first
+                    if date_of_run[1]==begin_of_experiment[1][1] and date_of_run[2]==begin_of_experiment[1][2]:
+                        time_dif+=(float(date_of_run[0])-float(begin_of_experiment[1][0]))*24
+                    else:
+                        raise DateError('Start of the experiment in another month than a following run. Time difference cannot be calculated.')
                 table['Time'] = table['Time']+time_dif
                 dataOD=pd.concat([dataOD, table],ignore_index=True)
                 metainfo.loc[metainfo['plate run']==i_run+1,'plate run - start time']=time_dif
