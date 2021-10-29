@@ -1,5 +1,18 @@
 # PlateReaderAnalysis
-This script plots data of growth experiments measured in a plate reader. 
+Prepares and plots data of growth experiments measured in a plate reader. Using metadata and user defined analysis-specifications, the raw data is automatically:
+- read (staring from various input formats)
+- background corrected
+- luminescence data is normalized
+- smoothing is applied
+- sets of measurements that need to be analyzed together are determined (on both the level of dilution series as well as replicates)
+- various analysis can be performed (both for single replicates as well as the average of all replicates)
+  - inhibitory concentrations (IC)
+  - interaction of two inducers on the IC
+  - dose-response plots (on IC, growth rate and luminescence)
+  - doubling time
+  - timedependent OD & luminescence variations 
+
+![AVGtimedependentOD_WT_Laspartomycin C](https://user-images.githubusercontent.com/68091502/139456853-2aae50b0-8e99-4302-9308-08de3450a8fc.png)
 
 All files of this script must be contained in the same folder on your computer. Python 3.X (best 3.7) is needed for execution. All other files regarding your experiment can be in another file. The script only takes one input to read the data - the path of the AnalysisInformation.xlsx file, in which you specify which and how the data should be imported.
 
