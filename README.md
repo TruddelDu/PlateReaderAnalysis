@@ -5,6 +5,20 @@ I wrote this program during my PhD to analyze my experimental data. I tried to k
 
 Unfortunately, documentation is rather lacking as I only learned the importance and how-to of documenting during the end of the development phase.
 
+## Technologies
+Project created with:
+- python 3.7
+- xlrd 1.2.0
+- pandas
+- numpy
+- math
+- sys
+- numbers
+- scipy
+- matplotlib.pyplot
+- seaborn
+- sklearn
+
 ## Usage
 The programm can prepare and plot data of growth experiments measured in a plate reader. Using metadata and user defined analysis-specifications, the raw data is automatically:
 - read (staring from various input formats)
@@ -21,7 +35,7 @@ The programm can prepare and plot data of growth experiments measured in a plate
 
 ![AVGtimedependentOD_WT_Laspartomycin C](https://user-images.githubusercontent.com/68091502/139456853-2aae50b0-8e99-4302-9308-08de3450a8fc.png)
 
-All files of this script must be contained in the same folder on your computer. Python 3.X (best 3.7) is needed for execution. All other files regarding your experiment can be in another file. The script only takes one input to read the data - the path of the AnalysisInformation.xlsx file, in which you specify which and how the data should be imported.
+All files of this script must be contained in the same folder on your computer. All other files regarding your experiment can be in another file. The script only takes one input to read the data - the path of the AnalysisInformation.xlsx file, in which you specify which and how the data should be imported.
 
 So far ouput of the following readers can be analyzed: victor, biotek, SPECTROstar (BMG), CLARIOstar (BMG), FLUOstar Omega (BMG).
 The required format depends on the used reader. The respective functions to read the data describe the required output in more detail. The script recognizes automatically which device was used for the experiment.
