@@ -1,5 +1,12 @@
 # PlateReaderAnalysis
-Prepares and plots data of growth experiments measured in a plate reader. Using metadata and user defined analysis-specifications, the raw data is automatically:
+
+## General information
+I wrote this program during my PhD to analyze my experimental data. I tried to keep it as general as possible but of course it still ended up to be best suited for analyzes of inhibitory concentrations of antibiotics under different environmental conditions and for different strains as this is what I used it for.
+
+Unfortunately, documentation is rather lacking as I only learned the importance and how-to of documenting during the end of the development phase.
+
+## Usage
+The programm can prepare and plot data of growth experiments measured in a plate reader. Using metadata and user defined analysis-specifications, the raw data is automatically:
 - read (staring from various input formats)
 - background corrected
 - luminescence data is normalized
