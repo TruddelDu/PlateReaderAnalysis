@@ -7,16 +7,16 @@ Unfortunately, documentation is rather lacking as I only learned the importance 
 
 ## Technologies
 Project created with:
-- python 3.7
+- python 3.8
 - xlrd 1.2.0
-- pandas
-- numpy
+- pandas 1.1.1
+- numpy 1.19.1
 - math
 - sys
 - numbers
-- scipy
-- matplotlib.pyplot
-- seaborn
+- scipy 1.5.2
+- matplotlib.pyplot 3.3.1
+- seaborn 0.10.1
 - sklearn
 
 ## Usage
